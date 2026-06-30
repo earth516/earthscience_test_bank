@@ -22,6 +22,7 @@
       --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
       --correct: #10b981;
       --wrong: #ef4444;
+      --partial: #f59e0b;
     }
     body {
       font-family: 'Gowun Dodum', 'Malgun Gothic', sans-serif;
@@ -73,7 +74,7 @@
       border: 2px solid var(--border);
       font-family: inherit;
       transition: border-color 0.2s;
-      margin-top: 12px;
+      margin-top: 8px;
     }
     input:focus { outline: none; border-color: var(--primary); }
     button {
@@ -133,7 +134,6 @@
       transform: translateY(-4px);
       box-shadow: var(--shadow-md);
     }
-    .block-icon { font-size: 36px; margin-bottom: 4px; }
     .block-title {
       font-weight: bold;
       font-size: 16px;
@@ -147,10 +147,23 @@
       padding: 3px 10px;
       border-radius: 12px;
     }
-    .block-part-A { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #fcd34d; }
-    .block-part-B { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-color: #93c5fd; }
-    .block-part-C { background: linear-gradient(135deg, #fed7aa, #fdba74); border-color: #fb923c; }
-    .block-part-D { background: linear-gradient(135deg, #e9d5ff, #d8b4fe); border-color: #c084fc; }
+    /* 경로 (breadcrumb) */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border-radius: 12px;
+      font-size: 14px;
+      color: var(--primary-dark);
+      margin-bottom: 16px;
+      font-weight: bold;
+    }
+    .breadcrumb-sep { color: var(--text-light); opacity: 0.5; }
+    .breadcrumb-icon { font-size: 16px; }
+    /* 인사 */
     .greeting {
       display: flex;
       justify-content: space-between;
@@ -159,6 +172,7 @@
     }
     .greeting-text { font-size: 18px; }
     .greeting-text strong { color: var(--primary); }
+    /* 진행 */
     .progress-bar {
       background: #f1f5f9;
       height: 8px;
@@ -178,7 +192,6 @@
       color: var(--text-light);
       margin-bottom: 8px;
     }
-    .sub-info { color: var(--text-light); font-size: 13px; margin-bottom: 8px; }
     .concept-title {
       font-family: 'Jua', sans-serif;
       font-size: 22px;
@@ -193,6 +206,33 @@
       margin: 16px 0;
       border: 1px solid var(--border);
     }
+    /* 빈칸 입력 영역 */
+    .blank-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .blank-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .blank-label {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-family: 'Jua', sans-serif;
+    }
+    .blank-row input { margin-top: 0; }
+    /* 결과 */
     .result-msg {
       margin-top: 16px;
       padding: 16px;
@@ -209,8 +249,30 @@
       color: #991b1b;
       border-left: 4px solid var(--wrong);
     }
+    .result-partial {
+      background: #fef3c7;
+      color: #92400e;
+      border-left: 4px solid var(--partial);
+    }
     .result-icon { font-size: 22px; font-weight: bold; margin-right: 8px; }
     .explanation { margin-top: 8px; font-size: 14px; opacity: 0.85; }
+    .answer-detail {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .answer-detail-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .answer-mark { font-weight: bold; min-width: 20px; }
+    .answer-mark.ok { color: var(--correct); }
+    .answer-mark.no { color: var(--wrong); }
+    /* 결과 화면 */
     .summary { text-align: center; padding: 20px; }
     .summary-score {
       font-family: 'Jua', sans-serif;
@@ -246,7 +308,7 @@
       .logo-wrap { width: 90px; height: 90px; }
       .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .block { padding: 16px 12px; }
-      .block-icon { font-size: 28px; }
+      .breadcrumb { font-size: 12px; padding: 10px 12px; }
     }
   </style>
 </head>
@@ -261,6 +323,7 @@
     <div class="subtitle">EARTH SCIENCE</div>
   </div>
 
+  <!-- 로그인 -->
   <div id="loginScreen" class="card">
     <h2>👋 어서오세요!</h2>
     <p style="color: var(--text-light); margin-top: 4px;">학번을 입력하고 시작해요</p>
@@ -269,46 +332,50 @@
     <p id="loginMsg" class="msg"></p>
   </div>
 
-  <div id="partScreen" class="card hidden">
+  <!-- 소단원 선택 -->
+  <div id="subUnitScreen" class="card hidden">
     <div class="greeting">
       <div class="greeting-text"><strong id="studentName"></strong>님, 반가워요!</div>
       <button class="btn-secondary" onclick="logout()">로그아웃</button>
     </div>
-    <p style="color: var(--text-light);">학습할 단원을 선택하세요</p>
-    <div id="partGrid" class="grid"></div>
+    <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
+    <div id="subUnitGrid" class="grid"></div>
   </div>
 
+  <!-- 관련개념 선택 -->
   <div id="conceptScreen" class="card hidden">
-    <button class="btn-back" onclick="goToPartScreen()">← 단원 선택으로</button>
-    <h2 id="conceptScreenTitle"></h2>
+    <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
+    <div class="breadcrumb" id="conceptBreadcrumb"></div>
     <p style="color: var(--text-light);">학습할 개념을 선택하세요 (가나다순)</p>
     <div id="conceptGrid" class="grid"></div>
   </div>
 
+  <!-- 문제 풀이 -->
   <div id="quizScreen" class="card hidden">
+    <button class="btn-back" onclick="quitQuiz()">← 개념 선택으로</button>
+    <div class="breadcrumb" id="quizBreadcrumb"></div>
     <div class="progress-text">
       <span id="progressText"></span>
       <span id="scoreText"></span>
     </div>
     <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
-    <div class="sub-info" id="subUnitText"></div>
     <h3 class="concept-title" id="conceptText"></h3>
     <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
     <div id="quizArea"></div>
     <div id="resultMsg"></div>
     <div class="actions">
       <button id="nextBtn" class="btn-primary hidden" onclick="nextQuestion()">다음 문제 →</button>
-      <button class="btn-secondary" onclick="quitQuiz()">그만 풀기</button>
     </div>
   </div>
 
+  <!-- 결과 -->
   <div id="resultScreen" class="card hidden">
     <div class="summary">
       <h2>🎉 수고하셨어요!</h2>
       <div class="summary-score"><span id="scoreNum">0</span> / <span id="totalNum">0</span></div>
       <div class="summary-label" id="scorePercent"></div>
       <div class="actions" style="max-width:400px; margin: 24px auto 0;">
-        <button class="btn-primary" onclick="goToPartScreen()">단원 선택으로</button>
+        <button class="btn-primary" onclick="goToSubUnitScreen()">소단원 선택으로</button>
         <button class="btn-secondary" onclick="retryQuiz()">다시 풀기</button>
       </div>
     </div>
@@ -318,26 +385,32 @@
 <script>
   const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
   const IMAGE_BASE = 'images/';
-  const PART_INFO = {
-    'A': { icon: '🌫️', className: 'block-part-A' },
-    'B': { icon: '🌊', className: 'block-part-B' },
-    'C': { icon: '⛰️', className: 'block-part-C' },
-    'D': { icon: '🌌', className: 'block-part-D' }
-  };
-  let currentStudent = null, allQuestions = [], currentPart = null, currentConcept = null;
-  let quizQuestions = [], currentIndex = 0, correctCount = 0;
-
+  
+  // 대단원 아이콘 (문제ID 첫 글자 기준)
+  const PART_ICON = { 'A': '🌫️', 'B': '🌊', 'C': '⛰️', 'D': '🌌' };
+  
+  let currentStudent = null;
+  let allQuestions = [];
+  let currentSubUnit = null;
+  let currentConcept = null;
+  let quizQuestions = [];
+  let currentIndex = 0;
+  let correctCount = 0;
+  
   async function apiCall(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
     const response = await fetch(url);
     return await response.json();
   }
+  
   function showScreen(id) {
-    ['loginScreen', 'partScreen', 'conceptScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'subUnitScreen', 'conceptScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  
+  // ===== 로그인 =====
   async function login() {
     const id = document.getElementById('studentIdInput').value.trim();
     const msg = document.getElementById('loginMsg');
@@ -349,7 +422,7 @@
         currentStudent = result;
         document.getElementById('studentName').textContent = result.이름;
         await loadQuestions();
-        showScreen('partScreen');
+        showScreen('subUnitScreen');
       } else {
         msg.textContent = '❌ ' + result.message;
         msg.className = 'msg error';
@@ -359,84 +432,142 @@
       msg.className = 'msg error';
     }
   }
+  
   function logout() {
-    currentStudent = null; allQuestions = [];
+    currentStudent = null;
+    allQuestions = [];
     document.getElementById('studentIdInput').value = '';
     document.getElementById('loginMsg').textContent = '';
     showScreen('loginScreen');
   }
+  
   async function loadQuestions() {
     const result = await apiCall({ action: 'getQuestions' });
     if (result.status === 'ok') {
       allQuestions = result.data.filter(q => q.문제ID);
-      renderPartGrid();
     }
   }
-  function renderPartGrid() {
-    const grid = document.getElementById('partGrid');
+  
+  // ===== 소단원 블록 (시트 순서대로) =====
+  function renderSubUnitGrid() {
+    const grid = document.getElementById('subUnitGrid');
     grid.innerHTML = '';
-    const parts = [...new Set(allQuestions.map(q => q.대단원))].filter(Boolean).sort();
-    if (parts.length === 0) {
+    
+    // 시트 순서대로 unique 소단원 추출
+    const seen = new Set();
+    const subUnits = [];
+    allQuestions.forEach(q => {
+      if (q.소단원 && !seen.has(q.소단원)) {
+        seen.add(q.소단원);
+        subUnits.push({
+          이름: q.소단원,
+          대단원: q.대단원,
+          중단원: q.중단원,
+          코드: (q.문제ID || '').charAt(0).toUpperCase()
+        });
+      }
+    });
+    
+    if (subUnits.length === 0) {
       grid.innerHTML = '<div class="empty-state">아직 문제가 없어요</div>';
       return;
     }
-    parts.forEach(partName => {
-      const partQuestions = allQuestions.filter(q => q.대단원 === partName);
-      const code = (partQuestions[0].문제ID || '').charAt(0).toUpperCase();
-      const info = PART_INFO[code] || { icon: '📘', className: '' };
+    
+    subUnits.forEach(su => {
+      const count = allQuestions.filter(q => q.소단원 === su.이름).length;
+      const icon = PART_ICON[su.코드] || '📘';
       const block = document.createElement('div');
-      block.className = 'block ' + info.className;
+      block.className = 'block';
       block.innerHTML = `
-        <div class="block-icon">${info.icon}</div>
-        <div class="block-title">${partName}</div>
-        <div class="block-count">${partQuestions.length}문제</div>`;
-      block.onclick = () => selectPart(partName);
+        <div style="font-size:32px;">${icon}</div>
+        <div class="block-title">${su.이름}</div>
+        <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
+        <div class="block-count">${count}문제</div>
+      `;
+      block.onclick = () => selectSubUnit(su);
       grid.appendChild(block);
     });
   }
-  function goToPartScreen() {
-    currentPart = null; currentConcept = null;
-    showScreen('partScreen');
+  
+  function goToSubUnitScreen() {
+    currentSubUnit = null;
+    currentConcept = null;
+    renderSubUnitGrid();
+    showScreen('subUnitScreen');
   }
-  function selectPart(partName) {
-    currentPart = partName;
-    document.getElementById('conceptScreenTitle').textContent = partName;
+  
+  // ===== 관련개념 블록 (가나다순) =====
+  function selectSubUnit(su) {
+    currentSubUnit = su;
+    const icon = PART_ICON[su.코드] || '📘';
+    document.getElementById('conceptBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">${icon}</span>
+      <span>${su.대단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${su.중단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${su.이름}</span>
+    `;
     renderConceptGrid();
     showScreen('conceptScreen');
   }
+  
   function renderConceptGrid() {
     const grid = document.getElementById('conceptGrid');
     grid.innerHTML = '';
-    const partQs = allQuestions.filter(q => q.대단원 === currentPart);
-    const concepts = [...new Set(partQs.map(q => q.관련개념))].filter(Boolean);
+    const subQs = allQuestions.filter(q => q.소단원 === currentSubUnit.이름);
+    const concepts = [...new Set(subQs.map(q => q.관련개념))].filter(Boolean);
     concepts.sort((a, b) => String(a).localeCompare(String(b), 'ko'));
+    
     if (concepts.length === 0) {
       grid.innerHTML = '<div class="empty-state">아직 개념이 등록되지 않았어요</div>';
       return;
     }
+    
     concepts.forEach(concept => {
-      const cQs = partQs.filter(q => q.관련개념 === concept);
+      const cQs = subQs.filter(q => q.관련개념 === concept);
       const block = document.createElement('div');
       block.className = 'block';
       block.innerHTML = `
         <div class="block-title">${concept}</div>
-        <div class="block-count">${cQs.length}문제</div>`;
+        <div class="block-count">${cQs.length}문제</div>
+      `;
       block.onclick = () => startQuiz(concept);
       grid.appendChild(block);
     });
   }
+  
+  // ===== 퀴즈 =====
   function startQuiz(concept) {
     currentConcept = concept;
-    const qs = allQuestions.filter(q => q.대단원 === currentPart && q.관련개념 === concept);
+    const qs = allQuestions.filter(q => 
+      q.소단원 === currentSubUnit.이름 && q.관련개념 === concept
+    );
     quizQuestions = shuffle(qs);
-    currentIndex = 0; correctCount = 0;
+    currentIndex = 0;
+    correctCount = 0;
+    
+    const icon = PART_ICON[currentSubUnit.코드] || '📘';
+    document.getElementById('quizBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">${icon}</span>
+      <span>${currentSubUnit.대단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${currentSubUnit.중단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${currentSubUnit.이름}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${concept}</span>
+    `;
+    
     showScreen('quizScreen');
     showQuestion();
   }
+  
   function retryQuiz() {
-    if (currentPart && currentConcept) startQuiz(currentConcept);
-    else goToPartScreen();
+    if (currentSubUnit && currentConcept) startQuiz(currentConcept);
+    else goToSubUnitScreen();
   }
+  
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -445,16 +576,28 @@
     }
     return a;
   }
+  
+  // ===== 정답 파싱 =====
+  // "하강|오존" → [["하강"], ["오존"]]  (빈칸 2개, 각 1개 정답)
+  // "9.8/9.8m/s²" → [["9.8", "9.8m/s²"]]  (빈칸 1개, 정답 후보 2개)
+  // "하강|오존/O3" → [["하강"], ["오존", "O3"]]  (빈칸 2개, 2번째 칸 정답 2개)
+  function parseAnswer(answerStr) {
+    return String(answerStr).split('|').map(blank => 
+      blank.split('/').map(s => s.trim()).filter(Boolean)
+    );
+  }
+  
   function showQuestion() {
     const q = quizQuestions[currentIndex];
     const total = quizQuestions.length;
     const num = currentIndex + 1;
+    
     document.getElementById('progressText').textContent = `${num} / ${total}`;
     document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
     document.getElementById('progressFill').style.width = `${(num / total) * 100}%`;
-    document.getElementById('subUnitText').textContent = 
-      `${q.중단원 || ''}${q.소단원 ? ' › ' + q.소단원 : ''}`;
     document.getElementById('conceptText').textContent = '💡 ' + (q.관련개념 || '');
+    
+    // 이미지
     const img = document.getElementById('questionImg');
     let src = q.문제그림URL;
     if (src) {
@@ -467,75 +610,174 @@
     } else {
       img.classList.add('hidden');
     }
+    
+    // 빈칸 개수만큼 입력칸 생성
+    const correctParsed = parseAnswer(q.정답);
+    const blankCount = correctParsed.length;
+    
     const area = document.getElementById('quizArea');
     area.innerHTML = '';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'answerInput';
-    input.placeholder = '정답을 입력하세요 (예: 9.8 또는 ㄱㄴㄷ)';
-    input.onkeypress = (e) => { if (e.key === 'Enter') submitAnswer(); };
-    area.appendChild(input);
+    
+    const wrap = document.createElement('div');
+    wrap.className = 'blank-inputs';
+    
+    for (let i = 0; i < blankCount; i++) {
+      const row = document.createElement('div');
+      row.className = 'blank-row';
+      
+      if (blankCount > 1) {
+        const label = document.createElement('div');
+        label.className = 'blank-label';
+        // ①②③④⑤
+        const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+        label.textContent = circled[i] || (i+1);
+        row.appendChild(label);
+      }
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'blank-input';
+      input.dataset.idx = i;
+      input.placeholder = blankCount > 1 ? `${i+1}번째 빈칸` : '정답을 입력하세요';
+      input.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          // 마지막 칸이면 제출, 아니면 다음 칸으로
+          const inputs = document.querySelectorAll('.blank-input');
+          if (i === inputs.length - 1) submitAnswer();
+          else inputs[i+1].focus();
+        }
+      };
+      row.appendChild(input);
+      wrap.appendChild(row);
+    }
+    
+    area.appendChild(wrap);
+    
     const btn = document.createElement('button');
     btn.className = 'btn-primary';
     btn.textContent = '제출';
     btn.onclick = submitAnswer;
     area.appendChild(btn);
+    
     document.getElementById('resultMsg').innerHTML = '';
     document.getElementById('nextBtn').classList.add('hidden');
-    setTimeout(() => input.focus(), 200);
+    
+    setTimeout(() => {
+      const firstInput = document.querySelector('.blank-input');
+      if (firstInput) firstInput.focus();
+    }, 200);
   }
+  
   function normalize(s) {
     if (s === null || s === undefined) return '';
     return String(s).trim().replace(/\s+/g, '').toLowerCase();
   }
+  
   function normalizeForKor(s) {
     let str = normalize(s);
     if (/^[ㄱ-ㅎ]+$/.test(str)) return str.split('').sort().join('');
     return str;
   }
-  function checkCorrect(studentAns, correctAns) {
+  
+  function checkBlank(studentAns, candidates) {
     const sAns = normalizeForKor(studentAns);
-    const candidates = String(correctAns).split('|').map(s => normalizeForKor(s));
-    return candidates.includes(sAns);
+    return candidates.map(c => normalizeForKor(c)).includes(sAns);
   }
+  
   async function submitAnswer() {
-    const input = document.getElementById('answerInput');
-    const answer = input.value.trim();
-    if (!answer) return;
+    const inputs = document.querySelectorAll('.blank-input');
     const q = quizQuestions[currentIndex];
-    const isCorrect = checkCorrect(answer, q.정답);
-    if (isCorrect) correctCount++;
-    document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
-    const msgEl = document.getElementById('resultMsg');
-    if (isCorrect) {
-      msgEl.innerHTML = `<div class="result-msg result-correct">
-        <span class="result-icon">✓</span> 정답이에요!
-        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}</div>`;
-    } else {
-      msgEl.innerHTML = `<div class="result-msg result-wrong">
-        <span class="result-icon">✗</span> 아쉬워요. 정답: <strong>${q.정답}</strong>
-        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}</div>`;
+    const correctParsed = parseAnswer(q.정답);
+    
+    // 빈칸 다 입력했는지 체크
+    const answers = [];
+    for (let i = 0; i < inputs.length; i++) {
+      const v = inputs[i].value.trim();
+      if (!v) {
+        inputs[i].focus();
+        return; // 안 채운 칸이 있으면 거기로 포커스
+      }
+      answers.push(v);
     }
+    
+    // 각 빈칸 채점
+    const results = answers.map((a, i) => checkBlank(a, correctParsed[i]));
+    const correctNum = results.filter(r => r).length;
+    const totalNum = results.length;
+    const allCorrect = correctNum === totalNum;
+    
+    if (allCorrect) correctCount++;
+    document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
+    
+    // 결과 표시
+    const msgEl = document.getElementById('resultMsg');
+    let resultHtml = '';
+    
+    if (allCorrect) {
+      resultHtml = `<div class="result-msg result-correct">
+        <span class="result-icon">✓</span> 정답이에요!
+        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+      </div>`;
+    } else if (correctNum > 0) {
+      // 부분 정답 (틀린 걸로 처리하지만 몇 개 맞췄는지 표시)
+      let detailHtml = '<div class="answer-detail">';
+      results.forEach((r, i) => {
+        const correctShow = correctParsed[i].join(' 또는 ');
+        detailHtml += `<div class="answer-detail-row">
+          <span class="answer-mark ${r ? 'ok' : 'no'}">${r ? '✓' : '✗'}</span>
+          <span>${i+1}번 빈칸: <strong>${correctShow}</strong> (입력: ${answers[i]})</span>
+        </div>`;
+      });
+      detailHtml += '</div>';
+      resultHtml = `<div class="result-msg result-partial">
+        <span class="result-icon">△</span> 아쉬워요! ${totalNum}개 중 ${correctNum}개 맞췄어요.
+        ${detailHtml}
+        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+      </div>`;
+    } else {
+      let detailHtml = '<div class="answer-detail">';
+      correctParsed.forEach((cands, i) => {
+        detailHtml += `<div class="answer-detail-row">
+          <span class="answer-mark no">✗</span>
+          <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+        </div>`;
+      });
+      detailHtml += '</div>';
+      resultHtml = `<div class="result-msg result-wrong">
+        <span class="result-icon">✗</span> 다시 한번 풀어볼까요?
+        ${detailHtml}
+        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+      </div>`;
+    }
+    
+    msgEl.innerHTML = resultHtml;
+    
+    // 저장 (학생답안은 콤마로 연결)
     apiCall({
       action: 'saveAnswer',
       학번: currentStudent.학번,
       이름: currentStudent.이름,
       문제ID: q.문제ID,
-      학생답안: answer,
-      정답여부: isCorrect ? 'true' : 'false'
+      학생답안: answers.join(' | '),
+      정답여부: allCorrect ? 'true' : 'false'
     }).catch(err => console.error('저장 실패:', err));
-    input.disabled = true;
+    
+    // 입력 비활성화
+    inputs.forEach(i => i.disabled = true);
     document.querySelectorAll('#quizArea button').forEach(b => b.disabled = true);
+    
     if (currentIndex < quizQuestions.length - 1) {
       document.getElementById('nextBtn').classList.remove('hidden');
     } else {
-      setTimeout(showResult, 1500);
+      setTimeout(showResult, 1800);
     }
   }
+  
   function nextQuestion() {
     currentIndex++;
     showQuestion();
   }
+  
   function showResult() {
     document.getElementById('scoreNum').textContent = correctCount;
     document.getElementById('totalNum').textContent = quizQuestions.length;
@@ -548,11 +790,18 @@
     document.getElementById('scorePercent').textContent = `${pct}% · ${comment}`;
     showScreen('resultScreen');
   }
+  
   function quitQuiz() {
     if (currentIndex > 0 || correctCount > 0) {
       if (!confirm('정말 그만 푸시겠어요?')) return;
     }
-    goToPartScreen();
+    // 같은 소단원의 개념 선택 화면으로
+    if (currentSubUnit) {
+      renderConceptGrid();
+      showScreen('conceptScreen');
+    } else {
+      goToSubUnitScreen();
+    }
   }
 </script>
 </body>
