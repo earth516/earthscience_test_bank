@@ -466,6 +466,7 @@
     <div id="quizArea"></div>
     <div id="resultMsg"></div>
     <div class="actions">
+      <button id="revealBtn" class="btn-secondary hidden" onclick="revealAnswer()">정답 보기</button>
       <button id="nextBtn" class="btn-primary hidden">다음 문제 →</button>
     </div>
   </div>
@@ -921,6 +922,7 @@
     
     document.getElementById('resultMsg').innerHTML = '';
     document.getElementById('nextBtn').classList.add('hidden');
+    document.getElementById('revealBtn').classList.add('hidden');
     
     setTimeout(() => {
       const firstInput = document.querySelector('.blank-input');
@@ -966,66 +968,98 @@
     const totalNum = results.length;
     const allCorrect = correctNum === totalNum;
     
-    if (allCorrect) correctCount++;
-    document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
-    
-    // 결과 표시
     const msgEl = document.getElementById('resultMsg');
-    let resultHtml = '';
     
     if (allCorrect) {
-      resultHtml = `<div class="result-msg result-correct">
+      // ===== 정답 =====
+      correctCount++;
+      document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
+      msgEl.innerHTML = `<div class="result-msg result-correct">
         <span class="result-icon">✓</span> 정답이에요!
         ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
       </div>`;
-    } else if (correctNum > 0) {
-      // 부분 정답 (틀린 걸로 처리하지만 몇 개 맞췄는지 표시)
-      let detailHtml = '<div class="answer-detail">';
-      results.forEach((r, i) => {
-        const correctShow = correctParsed[i].join(' 또는 ');
-        detailHtml += `<div class="answer-detail-row">
-          <span class="answer-mark ${r ? 'ok' : 'no'}">${r ? '✓' : '✗'}</span>
-          <span>${i+1}번 빈칸: <strong>${correctShow}</strong> (입력: ${answers[i]})</span>
-        </div>`;
-      });
-      detailHtml += '</div>';
-      resultHtml = `<div class="result-msg result-partial">
-        <span class="result-icon">△</span> 아쉬워요! ${totalNum}개 중 ${correctNum}개 맞췄어요.
-        ${detailHtml}
-        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
-      </div>`;
+      saveResult(q, answers, true);   // O 로 저장
+      lockQuestion();                 // 입력 잠금
+      showNextButton();               // 다음/결과 버튼
     } else {
-      let detailHtml = '<div class="answer-detail">';
-      correctParsed.forEach((cands, i) => {
-        detailHtml += `<div class="answer-detail-row">
-          <span class="answer-mark no">✗</span>
-          <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+      // ===== 오답 · 부분정답 → 정답 숨기고 다시 풀게 =====
+      if (correctNum > 0) {
+        // 부분 정답: 어느 칸이 맞고 틀렸는지만 힌트 (정답은 안 보여줌)
+        let hintHtml = '<div class="answer-detail">';
+        results.forEach((r, i) => {
+          hintHtml += `<div class="answer-detail-row">
+            <span class="answer-mark ${r ? 'ok' : 'no'}">${r ? '✓' : '✗'}</span>
+            <span>${i+1}번 빈칸: ${r ? '맞았어요!' : '다시 생각해볼까요?'}</span>
+          </div>`;
+        });
+        hintHtml += '</div>';
+        msgEl.innerHTML = `<div class="result-msg result-partial">
+          <span class="result-icon">△</span> ${totalNum}개 중 ${correctNum}개 맞았어요. 틀린 칸을 다시 채워볼까요?
+          ${hintHtml}
         </div>`;
-      });
-      detailHtml += '</div>';
-      resultHtml = `<div class="result-msg result-wrong">
-        <span class="result-icon">✗</span> 다시 한번 풀어볼까요?
-        ${detailHtml}
-        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
-      </div>`;
+      } else {
+        msgEl.innerHTML = `<div class="result-msg result-wrong">
+          <span class="result-icon">✗</span> 다시 한번 생각해 볼까요?
+        </div>`;
+      }
+      // 입력칸은 열어둔 채 → 다시 시도 가능. '정답 보기' 버튼 노출
+      document.getElementById('revealBtn').classList.remove('hidden');
+      document.getElementById('nextBtn').classList.add('hidden');
+      // 틀린 첫 칸으로 포커스
+      const firstWrong = results.findIndex(r => !r);
+      if (firstWrong >= 0 && inputs[firstWrong]) {
+        inputs[firstWrong].focus();
+        inputs[firstWrong].select();
+      }
     }
+  }
+  
+  // ===== '정답 보기' 눌렀을 때 (포기) =====
+  function revealAnswer() {
+    const q = quizQuestions[currentIndex];
+    const correctParsed = parseAnswer(q.정답);
+    const inputs = document.querySelectorAll('.blank-input');
+    const answers = Array.from(inputs).map(i => i.value.trim());
     
-    msgEl.innerHTML = resultHtml;
+    let detailHtml = '<div class="answer-detail">';
+    correctParsed.forEach((cands, i) => {
+      detailHtml += `<div class="answer-detail-row">
+        <span class="answer-mark no">✗</span>
+        <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+      </div>`;
+    });
+    detailHtml += '</div>';
     
-    // 저장 (학생답안은 콤마로 연결)
+    document.getElementById('resultMsg').innerHTML = `<div class="result-msg result-wrong">
+      <span class="result-icon">💡</span> 정답을 확인해요!
+      ${detailHtml}
+      ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+    </div>`;
+    
+    saveResult(q, answers.length ? answers : [''], false);  // X 로 저장 (점수 미반영)
+    lockQuestion();
+    showNextButton();
+  }
+  
+  // ===== 공통 헬퍼 =====
+  function saveResult(q, answers, isCorrect) {
     apiCall({
       action: 'saveAnswer',
       학번: currentStudent.학번,
       이름: currentStudent.이름,
       문제ID: q.문제ID,
       학생답안: answers.join(' | '),
-      정답여부: allCorrect ? 'true' : 'false'
+      정답여부: isCorrect ? 'true' : 'false'
     }).catch(err => console.error('저장 실패:', err));
-    
-    // 입력 비활성화
-    inputs.forEach(i => i.disabled = true);
+  }
+  
+  function lockQuestion() {
+    document.querySelectorAll('.blank-input').forEach(i => i.disabled = true);
     document.querySelectorAll('#quizArea button').forEach(b => b.disabled = true);
-    
+    document.getElementById('revealBtn').classList.add('hidden');
+  }
+  
+  function showNextButton() {
     const nextBtn = document.getElementById('nextBtn');
     if (currentIndex < quizQuestions.length - 1) {
       nextBtn.textContent = '다음 문제 →';
