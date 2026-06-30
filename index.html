@@ -422,6 +422,7 @@
         currentStudent = result;
         document.getElementById('studentName').textContent = result.이름;
         await loadQuestions();
+        renderSubUnitGrid();
         showScreen('subUnitScreen');
       } else {
         msg.textContent = '❌ ' + result.message;
