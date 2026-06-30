@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지구과학 문제뱅크</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Malgun Gothic', -apple-system, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      margin-bottom: 16px;
+    }
+    h1 { color: #2c3e50; margin-top: 0; font-size: 26px; }
+    h2 { color: #34495e; margin-top: 0; }
+    h3 { color: #2c3e50; }
+    input, select, button {
+      font-size: 16px;
+      padding: 12px;
+      margin: 6px 0;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+    }
+    input, select { width: 100%; }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 13px 22px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    button:hover { background: #2980b9; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .choice-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: #ecf0f1;
+      color: #2c3e50;
+      margin: 8px 0;
+      padding: 14px;
+      font-weight: normal;
+    }
+    .choice-btn:hover:not(:disabled) { background: #d5dbdb; }
+    .secondary-btn { background: #95a5a6; }
+    .secondary-btn:hover { background: #7f8c8d; }
+    .hidden { display: none; }
+    .result-correct { color: #27ae60; font-weight: bold; font-size: 20px; }
+    .result-wrong { color: #e74c3c; font-weight: bold; font-size: 20px; }
+    .info { color: #7f8c8d; font-size: 14px; }
+    .badge {
+      display: inline-block;
+      background: #3498db;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-right: 6px;
+    }
+    img.question-img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 12px 0;
+      border: 1px solid #eee;
+    }
+    .loading {
+      text-align: center;
+      color: #7f8c8d;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 로그인 화면 -->
+  <div id="loginScreen" class="card">
+    <h1>🌍 지구과학 문제뱅크</h1>
+    <p>학번을 입력하세요</p>
+    <input type="text" id="studentIdInput" placeholder="예: 10101" onkeypress="if(event.key==='Enter')login()">
+    <button onclick="login()">입장하기</button>
+    <p id="loginMsg" class="info"></p>
+  </div>
+
+  <!-- 문제 선택 화면 -->
+  <div id="selectScreen" class="card hidden">
+    <h2>안녕하세요, <span id="studentName"></span>님! 👋</h2>
+    <p>풀고 싶은 영역을 선택하세요</p>
+    <select id="partSelect" onchange="filterQuestions()">
+      <option value="">-- 대단원 선택 --</option>
+    </select>
+    <select id="middleSelect" onchange="filterQuestions()">
+      <option value="">-- 중단원 선택 (전체) --</option>
+    </select>
+    <p id="countMsg" class="info"></p>
+    <button onclick="startQuiz()">🚀 문제 풀기 시작</button>
+    <button onclick="logout()" class="secondary-btn">로그아웃</button>
+  </div>
+
+  <!-- 문제 풀이 화면 -->
+  <div id="quizScreen" class="card hidden">
+    <p><span class="badge" id="progressBadge"></span><span class="info" id="subUnitText"></span></p>
+    <h3 id="conceptText"></h3>
+    <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
+    <div id="quizArea"></div>
+    <p id="resultMsg"></p>
+    <button id="nextBtn" class="hidden" onclick="nextQuestion()">다음 문제 →</button>
+    <button onclick="quitQuiz()" class="secondary-btn">그만 풀기</button>
+  </div>
+
+<script>
+  // ===== ⚠️ 여기에 본인 Apps Script URL =====
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
+  
+  // ===== 이미지 경로 prefix (저장소 내 images 폴더) =====
+  const IMAGE_BASE = 'images/';
+
+  // ===== 전역 상태 =====
+  let currentStudent = null;
+  let allQuestions = [];
+  let filteredQuestions = [];
+  let currentIndex = 0;
+
+  // ===== API 호출 헬퍼 =====
+  async function apiCall(params) {
+    const url = API_URL + '?' + new URLSearchParams(params).toString();
+    const response = await fetch(url);
+    return await response.json();
+  }
+
+  // ===== 로그인 =====
+  async function login() {
+    const id = document.getElementById('studentIdInput').value.trim();
+    if (!id) {
+      document.getElementById('loginMsg').textContent = '학번을 입력해주세요';
+      return;
+    }
+    document.getElementById('loginMsg').textContent = '확인 중...';
+    
+    try {
+      const result = await apiCall({ action: 'login', studentId: id });
+      if (result.status === 'ok') {
+        currentStudent = result;
+        document.getElementById('studentName').textContent = result.이름;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('selectScreen').classList.remove('hidden');
+        loadQuestions();
+      } else {
+        document.getElementById('loginMsg').textContent = '❌ ' + result.message;
+      }
+    } catch (err) {
+      document.getElementById('loginMsg').textContent = '⚠️ 서버 연결 실패: ' + err.message;
+    }
+  }
+
+  // ===== 문제 데이터 로드 =====
+  async function loadQuestions() {
+    document.getElementById('countMsg').textContent = '문제 불러오는 중...';
+    try {
+      const result = await apiCall({ action: 'getQuestions' });
+      if (result.status === 'ok') {
+        allQuestions = result.data;
+        populatePartSelect();
+        filterQuestions();
+      }
+    } catch (err) {
+      document.getElementById('countMsg').textContent = '⚠️ 문제 로드 실패';
+    }
+  }
+
+  function populatePartSelect() {
+    const parts = [...new Set(allQuestions.map(q => q.대단원))].filter(Boolean);
+    const sel = document.getElementById('partSelect');
+    sel.innerHTML = '<option value="">-- 대단원 선택 --</option>';
+    parts.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = p;
+      sel.appendChild(opt);
+    });
+  }
+
+  function filterQuestions() {
+    const part = document.getElementById('partSelect').value;
+    const middle = document.getElementById('middleSelect').value;
+    
+    // 중단원 옵션 갱신
+    const middleSel = document.getElementById('middleSelect');
+    const currentMiddle = middleSel.value;
+    middleSel.innerHTML = '<option value="">-- 중단원 선택 (전체) --</option>';
+    if (part) {
+      const middles = [...new Set(allQuestions.filter(q => q.대단원 === part).map(q => q.중단원))].filter(Boolean);
+      middles.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        if (m === currentMiddle) opt.selected = true;
+        middleSel.appendChild(opt);
+      });
+    }
+    
+    const finalMiddle = middleSel.value;
+    filteredQuestions = allQuestions.filter(q => {
+      if (part && q.대단원 !== part) return false;
+      if (finalMiddle && q.중단원 !== finalMiddle) return false;
+      return true;
+    });
+    
+    // 문제 순서 섞기
+    filteredQuestions = shuffle(filteredQuestions);
+    
+    document.getElementById('countMsg').textContent = 
+      `📚 풀 수 있는 문제: ${filteredQuestions.length}개`;
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ===== 퀴즈 시작 =====
+  function startQuiz() {
+    if (filteredQuestions.length === 0) {
+      alert('풀 문제가 없습니다');
+      return;
+    }
+    currentIndex = 0;
+    document.getElementById('selectScreen').classList.add('hidden');
+    document.getElementById('quizScreen').classList.remove('hidden');
+    showQuestion();
+  }
+
+  function showQuestion() {
+    const q = filteredQuestions[currentIndex];
+    document.getElementById('progressBadge').textContent = 
+      `${currentIndex + 1} / ${filteredQuestions.length}`;
+    document.getElementById('subUnitText').textContent = q.소단원 || '';
+    document.getElementById('conceptText').textContent = '💡 ' + (q.관련개념 || '');
+    
+    // 그림 표시
+    const img = document.getElementById('questionImg');
+    if (q.문제그림URL) {
+      // URL이 http로 시작하면 그대로, 아니면 images/ 폴더에서 찾음
+      let src = q.문제그림URL;
+      if (!src.startsWith('http') && !src.startsWith('images/')) {
+        src = IMAGE_BASE + src;
+      }
+      img.src = src;
+      img.classList.remove('hidden');
+    } else {
+      // URL이 비어있으면 문제ID로 자동 추정 (A-01-001 → images/A-01-001.png)
+      if (q.문제ID) {
+        img.src = IMAGE_BASE + q.문제ID + '.png';
+        img.classList.remove('hidden');
+      } else {
+        img.classList.add('hidden');
+      }
+    }
+    
+    // 문제 유형별 UI
+    const area = document.getElementById('quizArea');
+    area.innerHTML = '';
+    
+    if (q.문제유형 === '빈칸') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'answerInput';
+      input.placeholder = '정답 입력';
+      input.onkeypress = (e) => { if (e.key === 'Enter') submitBlank(); };
+      area.appendChild(input);
+      
+      const btn = document.createElement('button');
+      btn.textContent = '제출';
+      btn.onclick = submitBlank;
+      area.appendChild(btn);
+      
+      setTimeout(() => input.focus(), 100);
+    } else if (q.문제유형 === '객관식') {
+      for (let i = 1; i <= 4; i++) {
+        const choice = q['선택지' + i];
+        if (choice) {
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.textContent = `${i}. ${choice}`;
+          btn.onclick = () => submitChoice(i);
+          area.appendChild(btn);
+        }
+      }
+    }
+    
+    document.getElementById('resultMsg').textContent = '';
+    document.getElementById('nextBtn').classList.add('hidden');
+  }
+
+  function submitBlank() {
+    const answer = document.getElementById('answerInput').value.trim();
+    if (!answer) return;
+    const correct = String(filteredQuestions[currentIndex].정답).trim();
+    // 여러 정답 허용: | 로 구분
+    const correctList = correct.split('|').map(s => s.trim());
+    const isCorrect = correctList.includes(answer);
+    checkAnswer(answer, isCorrect);
+  }
+
+  function submitChoice(num) {
+    const correct = String(filteredQuestions[currentIndex].정답).trim();
+    checkAnswer(num, String(num) === correct);
+  }
+
+  async function checkAnswer(studentAnswer, isCorrect) {
+    const q = filteredQuestions[currentIndex];
+    const msg = document.getElementById('resultMsg');
+    
+    if (isCorrect) {
+      msg.innerHTML = `<span class="result-correct">✅ 정답!</span><br><span class="info">${q.해설 || ''}</span>`;
+    } else {
+      msg.innerHTML = `<span class="result-wrong">❌ 오답</span> (정답: ${q.정답})<br><span class="info">${q.해설 || ''}</span>`;
+    }
+    
+    // 답안 저장 (백그라운드)
+    apiCall({
+      action: 'saveAnswer',
+      학번: currentStudent.학번,
+      이름: currentStudent.이름,
+      문제ID: q.문제ID,
+      학생답안: studentAnswer,
+      정답여부: isCorrect ? 'true' : 'false'
+    }).catch(err => console.error('저장 실패:', err));
+    
+    // 버튼 비활성화
+    document.querySelectorAll('#quizArea button, #quizArea input').forEach(b => b.disabled = true);
+    
+    if (currentIndex < filteredQuestions.length - 1) {
+      document.getElementById('nextBtn').classList.remove('hidden');
+    } else {
+      msg.innerHTML += '<br><br>🎉 모든 문제를 풀었습니다!';
+    }
+  }
+
+  function nextQuestion() {
+    currentIndex++;
+    showQuestion();
+  }
+
+  function quitQuiz() {
+    document.getElementById('quizScreen').classList.add('hidden');
+    document.getElementById('selectScreen').classList.remove('hidden');
+    filterQuestions(); // 새로 섞기
+  }
+
+  function logout() {
+    currentStudent = null;
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('loginMsg').textContent = '';
+    document.getElementById('selectScreen').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+</script>
+</body>
+</html>
