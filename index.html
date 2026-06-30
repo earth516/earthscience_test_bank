@@ -466,7 +466,7 @@
     <div id="quizArea"></div>
     <div id="resultMsg"></div>
     <div class="actions">
-            <button id="nextBtn" class="btn-primary hidden">다음 문제 →</button>
+      <button id="nextBtn" class="btn-primary hidden">다음 문제 →</button>
     </div>
   </div>
 
@@ -488,8 +488,25 @@
   const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
   const IMAGE_BASE = 'images/';
   
-  // 대단원 아이콘 (문제ID 첫 글자 기준)
-  const PART_ICON = { 'A': '🌫️', 'B': '🌊', 'C': '⛰️', 'D': '🌌' };
+  // 대단원 아이콘 (문제ID 앞부분 기준)
+  // 새 방식: atm/ocn/geo/spc  (옛 방식 A/B/C/D 도 같이 지원)
+  const PART_ICON = {
+    'atm': '🌫️', 'ocn': '🌊', 'geo': '⛰️', 'spc': '🌌',
+    'A': '🌫️', 'B': '🌊', 'C': '⛰️', 'D': '🌌'
+  };
+
+  // 문제ID에서 대단원 코드 뽑기
+  //  atm-001 → atm,  A-01-001 → A
+  function partCode(id) {
+    const s = String(id || '').trim();
+    if (!s) return '';
+    const first = s.split('-')[0].toLowerCase();   // 첫 구획 (예: atm, a)
+    if (PART_ICON[first]) return first;            // atm/ocn/geo/spc 매칭
+    return s.charAt(0).toUpperCase();              // 옛 방식 A/B/C/D
+  }
+  function partIcon(id) {
+    return PART_ICON[partCode(id)] || '📘';
+  }
   
   let currentStudent = null;
   let allQuestions = [];
@@ -602,7 +619,7 @@
           이름: q.소단원,
           대단원: q.대단원,
           중단원: q.중단원,
-          코드: (q.문제ID || '').charAt(0).toUpperCase()
+          코드: partCode(q.문제ID)
         });
       }
     });
@@ -673,7 +690,7 @@
           소단원: q.소단원,
           중단원: q.중단원,
           대단원: q.대단원,
-          코드: (q.문제ID || '').charAt(0).toUpperCase(),
+          코드: partCode(q.문제ID),
           문제들: []
         };
       }
@@ -1009,11 +1026,15 @@
     inputs.forEach(i => i.disabled = true);
     document.querySelectorAll('#quizArea button').forEach(b => b.disabled = true);
     
+    const nextBtn = document.getElementById('nextBtn');
     if (currentIndex < quizQuestions.length - 1) {
-      document.getElementById('nextBtn').classList.remove('hidden');
+      nextBtn.textContent = '다음 문제 →';
+      nextBtn.onclick = nextQuestion;
     } else {
-      setTimeout(showResult, 1800);
+      nextBtn.textContent = '결과 보기 🎉';
+      nextBtn.onclick = showResult;
     }
+    nextBtn.classList.remove('hidden');
   }
   
   function nextQuestion() {
