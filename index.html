@@ -301,6 +301,33 @@
       flex-wrap: wrap;
     }
     .actions button { flex: 1; min-width: 120px; }
+    /* 로딩 스피너 */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-overlay {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-light);
+      font-size: 15px;
+    }
+    .loading-overlay .spinner {
+      width: 28px;
+      height: 28px;
+      display: block;
+      margin: 0 auto 12px;
+    }
     @media (max-width: 480px) {
       body { padding: 12px; }
       .card { padding: 20px; }
@@ -339,6 +366,10 @@
       <button class="btn-secondary" onclick="logout()">로그아웃</button>
     </div>
     <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
+    <div id="subUnitLoading" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      📚 문제를 불러오는 중...
+    </div>
     <div id="subUnitGrid" class="grid"></div>
   </div>
 
@@ -410,27 +441,61 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   
-  // ===== 로그인 =====
+  // ===== 로그인 (최적화: 1번 호출 + 캐싱 + 로딩 표시) =====
   async function login() {
     const id = document.getElementById('studentIdInput').value.trim();
     const msg = document.getElementById('loginMsg');
     if (!id) { msg.textContent = '학번을 입력해주세요'; msg.className = 'msg error'; return; }
-    msg.textContent = '확인 중...'; msg.className = 'msg';
+    
+    // 로그인 버튼 비활성화 + 스피너 표시
+    const loginBtn = document.querySelector('#loginScreen .btn-primary');
+    loginBtn.disabled = true;
+    msg.innerHTML = '<span class="spinner"></span>입장하는 중...';
+    msg.className = 'msg';
+    
+    // ① 캐시된 문제 데이터 먼저 확인 (즉시 표시)
+    const cached = localStorage.getItem('sj_questions_cache');
+    let cachedQuestions = null;
+    if (cached) {
+      try { cachedQuestions = JSON.parse(cached); } catch (e) {}
+    }
+    
     try {
-      const result = await apiCall({ action: 'login', studentId: id });
+      // ② API 한 번에 호출 (로그인 + 문제 동시)
+      const result = await apiCall({ action: 'loginAndGetData', studentId: id });
+      
       if (result.status === 'ok') {
-        currentStudent = result;
+        currentStudent = { 학번: result.학번, 이름: result.이름 };
+        allQuestions = (result.questions || []).filter(q => q.문제ID);
+        
+        // 캐시 저장 (다음 로그인 시 즉시 표시용)
+        try {
+          localStorage.setItem('sj_questions_cache', JSON.stringify(allQuestions));
+        } catch (e) {}
+        
         document.getElementById('studentName').textContent = result.이름;
-        await loadQuestions();
         renderSubUnitGrid();
         showScreen('subUnitScreen');
+        msg.innerHTML = '';
       } else {
         msg.textContent = '❌ ' + result.message;
         msg.className = 'msg error';
+        loginBtn.disabled = false;
       }
     } catch (err) {
-      msg.textContent = '⚠️ 서버 연결 실패';
-      msg.className = 'msg error';
+      // ③ 서버 실패해도 캐시가 있으면 그걸로 진행
+      if (cachedQuestions && cachedQuestions.length > 0) {
+        currentStudent = { 학번: id, 이름: id + ' (오프라인)' };
+        allQuestions = cachedQuestions;
+        document.getElementById('studentName').textContent = currentStudent.이름;
+        renderSubUnitGrid();
+        showScreen('subUnitScreen');
+        msg.innerHTML = '';
+      } else {
+        msg.textContent = '⚠️ 서버 연결 실패';
+        msg.className = 'msg error';
+        loginBtn.disabled = false;
+      }
     }
   }
   
@@ -439,6 +504,8 @@
     allQuestions = [];
     document.getElementById('studentIdInput').value = '';
     document.getElementById('loginMsg').textContent = '';
+    const loginBtn = document.querySelector('#loginScreen .btn-primary');
+    if (loginBtn) loginBtn.disabled = false;
     showScreen('loginScreen');
   }
   
