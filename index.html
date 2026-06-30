@@ -328,6 +328,61 @@
       display: block;
       margin: 0 auto 12px;
     }
+    /* 검색창 */
+    .search-box {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-box input {
+      padding-left: 44px;
+      margin-top: 0;
+      background: #f8fafc;
+    }
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .search-clear {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #e2e8f0;
+      color: var(--text-light);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      border: none;
+      padding: 0;
+      font-weight: bold;
+    }
+    .search-clear:hover { background: #cbd5e1; }
+    .search-result-label {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+    .section-divider {
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text-light);
+      font-size: 14px;
+      font-weight: bold;
+    }
     @media (max-width: 480px) {
       body { padding: 12px; }
       .card { padding: 20px; }
@@ -365,12 +420,28 @@
       <div class="greeting-text"><strong id="studentName"></strong>님, 반가워요!</div>
       <button class="btn-secondary" onclick="logout()">로그아웃</button>
     </div>
-    <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
-    <div id="subUnitLoading" class="loading-overlay hidden">
-      <div class="spinner"></div>
-      📚 문제를 불러오는 중...
+    
+    <!-- 검색창 -->
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="개념 검색 (예: 오존, 염분)" oninput="handleSearch()">
+      <button id="searchClearBtn" class="search-clear hidden" onclick="clearSearch()">✕</button>
     </div>
-    <div id="subUnitGrid" class="grid"></div>
+    
+    <!-- 검색 결과 영역 -->
+    <div id="searchResultArea" class="hidden">
+      <div class="search-result-label" id="searchResultLabel"></div>
+      <div id="searchResultGrid" class="grid"></div>
+    </div>
+    
+    <!-- 소단원 영역 -->
+    <div id="subUnitArea">
+      <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
+      <div id="subUnitLoading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        📚 문제를 불러오는 중...
+      </div>
+      <div id="subUnitGrid" class="grid"></div>
+    </div>
   </div>
 
   <!-- 관련개념 선택 -->
@@ -561,7 +632,111 @@
     currentSubUnit = null;
     currentConcept = null;
     renderSubUnitGrid();
+    // 검색창도 초기화
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      handleSearch();
+    }
     showScreen('subUnitScreen');
+  }
+  
+  // ===== 🔍 검색 기능 =====
+  function handleSearch() {
+    const keyword = document.getElementById('searchInput').value.trim();
+    const clearBtn = document.getElementById('searchClearBtn');
+    const resultArea = document.getElementById('searchResultArea');
+    const subUnitArea = document.getElementById('subUnitArea');
+    
+    if (!keyword) {
+      // 검색어 없으면 → 소단원 보이기
+      clearBtn.classList.add('hidden');
+      resultArea.classList.add('hidden');
+      subUnitArea.classList.remove('hidden');
+      return;
+    }
+    
+    clearBtn.classList.remove('hidden');
+    
+    // 관련개념에 검색어 포함된 문제 찾기
+    const lowerKeyword = keyword.toLowerCase();
+    const matched = allQuestions.filter(q => 
+      q.관련개념 && String(q.관련개념).toLowerCase().includes(lowerKeyword)
+    );
+    
+    // 관련개념별로 그룹
+    const conceptMap = {};
+    matched.forEach(q => {
+      if (!conceptMap[q.관련개념]) {
+        conceptMap[q.관련개념] = {
+          개념: q.관련개념,
+          소단원: q.소단원,
+          중단원: q.중단원,
+          대단원: q.대단원,
+          코드: (q.문제ID || '').charAt(0).toUpperCase(),
+          문제들: []
+        };
+      }
+      conceptMap[q.관련개념].문제들.push(q);
+    });
+    
+    const conceptGroups = Object.values(conceptMap);
+    // 가나다순
+    conceptGroups.sort((a, b) => String(a.개념).localeCompare(String(b.개념), 'ko'));
+    
+    // 결과 표시
+    subUnitArea.classList.add('hidden');
+    resultArea.classList.remove('hidden');
+    
+    const label = document.getElementById('searchResultLabel');
+    const grid = document.getElementById('searchResultGrid');
+    grid.innerHTML = '';
+    
+    if (conceptGroups.length === 0) {
+      label.textContent = `"${keyword}" 검색 결과가 없어요`;
+      grid.innerHTML = '<div class="empty-state">😢 해당 개념이 없어요. 다른 키워드로 검색해보세요.</div>';
+      return;
+    }
+    
+    label.textContent = `"${keyword}" 검색 결과: ${conceptGroups.length}개 개념, ${matched.length}문제`;
+    
+    conceptGroups.forEach(group => {
+      const icon = PART_ICON[group.코드] || '📘';
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div style="font-size:28px;">${icon}</div>
+        <div class="block-title">${highlightKeyword(group.개념, keyword)}</div>
+        <div style="font-size:11px; color:var(--text-light);">${group.소단원}</div>
+        <div class="block-count">${group.문제들.length}문제</div>
+      `;
+      block.onclick = () => startQuizFromSearch(group);
+      grid.appendChild(block);
+    });
+  }
+  
+  function highlightKeyword(text, keyword) {
+    if (!keyword) return text;
+    const regex = new RegExp('(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return String(text).replace(regex, '<span style="background:#fef08a; padding:0 2px; border-radius:3px;">$1</span>');
+  }
+  
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    handleSearch();
+    document.getElementById('searchInput').focus();
+  }
+  
+  // 검색 결과에서 바로 퀴즈 시작
+  function startQuizFromSearch(group) {
+    // 가상의 소단원 정보 설정
+    currentSubUnit = {
+      이름: group.소단원,
+      대단원: group.대단원,
+      중단원: group.중단원,
+      코드: group.코드
+    };
+    startQuiz(group.개념);
   }
   
   // ===== 관련개념 블록 (가나다순) =====
