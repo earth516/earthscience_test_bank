@@ -278,6 +278,30 @@
       font-family: 'Jua', sans-serif;
     }
     .blank-row input { margin-top: 0; }
+    /* 객관식(합답형) 보기 */
+    .choice-wrap {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px;
+    }
+    .choice-btn {
+      flex: 1 1 calc(33.33% - 10px);
+      min-width: 84px;
+      background: white;
+      color: var(--text);
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px 10px;
+      font-family: 'Jua', sans-serif;
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+    .choice-btn:hover { border-color: var(--primary); }
+    .choice-btn.on {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    .choice-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+    .choice-hint { color: var(--text-light); font-size: 13px; margin-top: 10px; text-align: center; }
     /* 결과 */
     .result-msg {
       margin-top: 16px;
@@ -603,6 +627,7 @@
   let isMock = false;               // 모의고사 모드 여부
   let mockCount = 20;               // 선택된 문제 수 (10/20/30)
   let mockUnits = [];               // 선택된 중단원 이름 목록 (다시 풀기용)
+  let currentIsChoice = false;      // 현재 문제가 객관식(합답형)인지
   
   async function apiCall(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
@@ -1082,47 +1107,70 @@
       img.classList.add('hidden');
     }
     
-    // 빈칸 개수만큼 입력칸 생성
+    // 문제 유형 판별: 빈칸(기본) vs 객관식(합답형)
     const correctParsed = parseAnswer(q.정답);
-    const blankCount = correctParsed.length;
+    currentIsChoice = isChoiceType(q);
     
     const area = document.getElementById('quizArea');
     area.innerHTML = '';
     
-    const wrap = document.createElement('div');
-    wrap.className = 'blank-inputs';
-    
-    for (let i = 0; i < blankCount; i++) {
-      const row = document.createElement('div');
-      row.className = 'blank-row';
+    if (currentIsChoice) {
+      // ===== 객관식(합답형): ㄱ/ㄴ/ㄷ 조합 보기 버튼 =====
+      const wrap = document.createElement('div');
+      wrap.className = 'choice-wrap';
+      getChoiceOptions(q.정답).forEach(opt => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice-btn';
+        b.dataset.val = opt;
+        b.textContent = opt;
+        b.onclick = () => {
+          // 한 개만 선택 (라디오처럼)
+          wrap.querySelectorAll('.choice-btn').forEach(x => x.classList.remove('on'));
+          b.classList.add('on');
+        };
+        wrap.appendChild(b);
+      });
+      area.appendChild(wrap);
+      const hint = document.createElement('div');
+      hint.className = 'choice-hint';
+      hint.textContent = '보기 중 하나를 골라 제출하세요';
+      area.appendChild(hint);
+    } else {
+      // ===== 빈칸형: 빈칸 개수만큼 입력칸 =====
+      const blankCount = correctParsed.length;
+      const wrap = document.createElement('div');
+      wrap.className = 'blank-inputs';
       
-      if (blankCount > 1) {
-        const label = document.createElement('div');
-        label.className = 'blank-label';
-        // ①②③④⑤
-        const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-        label.textContent = circled[i] || (i+1);
-        row.appendChild(label);
-      }
-      
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'blank-input';
-      input.dataset.idx = i;
-      input.placeholder = blankCount > 1 ? `${i+1}번째 빈칸` : '정답을 입력하세요';
-      input.onkeypress = (e) => {
-        if (e.key === 'Enter') {
-          // 마지막 칸이면 제출, 아니면 다음 칸으로
-          const inputs = document.querySelectorAll('.blank-input');
-          if (i === inputs.length - 1) submitAnswer();
-          else inputs[i+1].focus();
+      for (let i = 0; i < blankCount; i++) {
+        const row = document.createElement('div');
+        row.className = 'blank-row';
+        
+        if (blankCount > 1) {
+          const label = document.createElement('div');
+          label.className = 'blank-label';
+          const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+          label.textContent = circled[i] || (i+1);
+          row.appendChild(label);
         }
-      };
-      row.appendChild(input);
-      wrap.appendChild(row);
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'blank-input';
+        input.dataset.idx = i;
+        input.placeholder = blankCount > 1 ? `${i+1}번째 빈칸` : '정답을 입력하세요';
+        input.onkeypress = (e) => {
+          if (e.key === 'Enter') {
+            const inputs = document.querySelectorAll('.blank-input');
+            if (i === inputs.length - 1) submitAnswer();
+            else inputs[i+1].focus();
+          }
+        };
+        row.appendChild(input);
+        wrap.appendChild(row);
+      }
+      area.appendChild(wrap);
     }
-    
-    area.appendChild(wrap);
     
     wrongAttempts = 0;                 // 이 문제 오답 횟수 초기화
     document.getElementById('resultMsg').innerHTML = '';
@@ -1132,6 +1180,28 @@
       const firstInput = document.querySelector('.blank-input');
       if (firstInput) firstInput.focus();
     }, 200);
+  }
+  
+  // 객관식 여부: 문제유형(F열)에 '객관' 또는 'ㄱㄴㄷ'가 들어가면 객관식
+  function isChoiceType(q) {
+    const t = String(q.문제유형 || '').trim();
+    return t.includes('객관') || t.includes('ㄱㄴㄷ');
+  }
+  
+  // 정답에 쓰인 보기 글자(ㄱㄴㄷ, 필요시 ㄹㅁ)로 조합 보기 만들기
+  function getChoiceOptions(answer) {
+    const base = ['ㄱ', 'ㄴ', 'ㄷ'];
+    const ans = String(answer);
+    ['ㄹ', 'ㅁ'].forEach(l => { if (ans.includes(l)) base.push(l); });
+    // base의 모든 비어있지 않은 부분집합 (크기 오름차순 → ㄱ,ㄴ,ㄷ,ㄱㄴ,ㄱㄷ,ㄴㄷ,ㄱㄴㄷ ...)
+    const subsets = [];
+    for (let mask = 1; mask < (1 << base.length); mask++) {
+      let combo = '';
+      for (let i = 0; i < base.length; i++) if (mask & (1 << i)) combo += base[i];
+      subsets.push(combo);
+    }
+    subsets.sort((a, b) => a.length - b.length || a.localeCompare(b));
+    return subsets;
   }
   
   function normalize(s) {
@@ -1151,22 +1221,26 @@
   }
   
   async function submitAnswer() {
-    const inputs = document.querySelectorAll('.blank-input');
     const q = quizQuestions[currentIndex];
     const correctParsed = parseAnswer(q.정답);
+    const inputs = document.querySelectorAll('.blank-input');
     
-    // 빈칸 다 입력했는지 체크
-    const answers = [];
-    for (let i = 0; i < inputs.length; i++) {
-      const v = inputs[i].value.trim();
-      if (!v) {
-        inputs[i].focus();
-        return; // 안 채운 칸이 있으면 거기로 포커스
+    // 학생 답안 수집 (객관식 / 빈칸 공통)
+    let answers;
+    if (currentIsChoice) {
+      const sel = document.querySelector('.choice-btn.on');
+      if (!sel) return;                 // 아무것도 안 고르면 무시
+      answers = [sel.dataset.val];
+    } else {
+      answers = [];
+      for (let i = 0; i < inputs.length; i++) {
+        const v = inputs[i].value.trim();
+        if (!v) { inputs[i].focus(); return; }  // 안 채운 칸으로 포커스
+        answers.push(v);
       }
-      answers.push(v);
     }
     
-    // 각 빈칸 채점
+    // 채점
     const results = answers.map((a, i) => checkBlank(a, correctParsed[i]));
     const correctNum = results.filter(r => r).length;
     const totalNum = results.length;
@@ -1198,8 +1272,8 @@
     }
     
     const left = REVEAL_AFTER - wrongAttempts;  // 남은 시도 횟수
-    if (correctNum > 0) {
-      // 부분 정답: 어느 칸이 맞고 틀렸는지만 힌트 (정답은 안 보여줌)
+    if (!currentIsChoice && correctNum > 0) {
+      // 빈칸 부분 정답: 어느 칸이 맞고 틀렸는지만 힌트 (정답은 안 보여줌)
       let hintHtml = '<div class="answer-detail">';
       results.forEach((r, i) => {
         hintHtml += `<div class="answer-detail-row">
@@ -1217,11 +1291,13 @@
         <span class="result-icon">✗</span> 다시 한번 생각해 볼까요? <em>(${left}번 더 틀리면 정답 공개)</em>
       </div>`;
     }
-    // 입력칸은 열어둔 채 → 다시 시도 가능 (버튼 3종 그대로 유지)
-    const firstWrong = results.findIndex(r => !r);
-    if (firstWrong >= 0 && inputs[firstWrong]) {
-      inputs[firstWrong].focus();
-      inputs[firstWrong].select();
+    // 빈칸형이면 틀린 첫 칸으로 포커스 (객관식은 그대로 다시 선택)
+    if (!currentIsChoice) {
+      const firstWrong = results.findIndex(r => !r);
+      if (firstWrong >= 0 && inputs[firstWrong]) {
+        inputs[firstWrong].focus();
+        inputs[firstWrong].select();
+      }
     }
   }
   
@@ -1229,16 +1305,29 @@
   function revealAnswer(auto) {
     const q = quizQuestions[currentIndex];
     const correctParsed = parseAnswer(q.정답);
-    const inputs = document.querySelectorAll('.blank-input');
-    const answers = Array.from(inputs).map(i => i.value.trim());
+    // 학생이 마지막에 고른/적은 답 (저장용)
+    let answers;
+    if (currentIsChoice) {
+      const sel = document.querySelector('.choice-btn.on');
+      answers = sel ? [sel.dataset.val] : [''];
+    } else {
+      answers = Array.from(document.querySelectorAll('.blank-input')).map(i => i.value.trim());
+    }
     
     let detailHtml = '<div class="answer-detail">';
-    correctParsed.forEach((cands, i) => {
+    if (currentIsChoice) {
       detailHtml += `<div class="answer-detail-row">
         <span class="answer-mark no">✗</span>
-        <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+        <span>정답: <strong>${correctParsed.map(c => c.join(' 또는 ')).join(', ')}</strong></span>
       </div>`;
-    });
+    } else {
+      correctParsed.forEach((cands, i) => {
+        detailHtml += `<div class="answer-detail-row">
+          <span class="answer-mark no">✗</span>
+          <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+        </div>`;
+      });
+    }
     detailHtml += '</div>';
     
     const head = auto ? '여러 번 틀렸어요. 정답을 확인해요!' : '정답을 확인해요!';
@@ -1289,6 +1378,7 @@
   
   function lockQuestion() {
     document.querySelectorAll('.blank-input').forEach(i => i.disabled = true);
+    document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
     document.getElementById('submitBtn').classList.add('hidden');
     document.getElementById('revealBtn').classList.add('hidden');
     document.getElementById('skipBtn').classList.add('hidden');
