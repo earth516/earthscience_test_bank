@@ -252,6 +252,19 @@
       padding-bottom: 12px;
       border-bottom: 2px dashed var(--border);
     }
+    /* 난이도 배지 */
+    .diff-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .diff-low  { background: #dcfce7; color: #15803d; }   /* 저급 */
+    .diff-mid  { background: #fef9c3; color: #a16207; }   /* 중급 */
+    .diff-high { background: #fee2e2; color: #b91c1c; }   /* 고급 */
+    .diff-etc  { background: #e2e8f0; color: #475569; }   /* 기타 값 */
     .question-img {
       max-width: 100%;
       border-radius: 12px;
@@ -286,19 +299,19 @@
     .blank-row input { margin-top: 0; }
     /* 객관식(합답형) 보기 */
     .choice-wrap {
-      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px;
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
     }
     .choice-btn {
-      flex: 1 1 calc(33.33% - 10px);
-      min-width: 84px;
+      flex: 0 1 auto;
+      min-width: 56px;
       background: white;
       color: var(--text);
       border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 16px 10px;
+      border-radius: 10px;
+      padding: 8px 12px;
       font-family: 'Jua', sans-serif;
-      font-size: 20px;
-      letter-spacing: 2px;
+      font-size: 15px;
+      letter-spacing: 1px;
     }
     .choice-btn:hover { border-color: var(--primary); }
     .choice-btn.on {
@@ -571,6 +584,7 @@
       <span id="scoreText"></span>
     </div>
     <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+    <span id="difficultyBadge" class="diff-badge hidden"></span>
     <h3 class="concept-title" id="conceptText"></h3>
     <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
     <div id="quizArea"></div>
@@ -1140,6 +1154,21 @@
     document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
     document.getElementById('progressFill').style.width = `${(num / total) * 100}%`;
     document.getElementById('conceptText').textContent = '💡 ' + (q.관련개념 || '');
+    
+    // 난이도 배지 (시트 '난이도' 열: 저급/중급/고급)
+    const diffEl = document.getElementById('difficultyBadge');
+    const diff = String(q.난이도 || '').trim();
+    if (diff) {
+      const cls = diff === '저급' ? 'diff-low'
+                : diff === '중급' ? 'diff-mid'
+                : diff === '고급' ? 'diff-high'
+                : 'diff-etc';
+      diffEl.className = 'diff-badge ' + cls;
+      diffEl.textContent = diff;
+    } else {
+      diffEl.className = 'diff-badge hidden';
+      diffEl.textContent = '';
+    }
     
     // 이미지
     const img = document.getElementById('questionImg');
