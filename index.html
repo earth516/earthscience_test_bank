@@ -862,11 +862,14 @@
     const img = document.getElementById('questionImg');
     let src = q.문제그림URL;
     if (src) {
+      // 시트에 직접 적은 경우: http(s) 또는 images/ 로 시작하면 그대로, 아니면 images/ 붙임
       if (!src.startsWith('http') && !src.startsWith('images/')) src = IMAGE_BASE + src;
       img.src = src;
       img.classList.remove('hidden');
     } else if (q.문제ID) {
-      img.src = IMAGE_BASE + q.문제ID + '.png';
+      // 자동 경로: images/[영역폴더]/[문제ID].png  (예: images/atm/atm-001.png)
+      const folder = partCode(q.문제ID);
+      img.src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
       img.classList.remove('hidden');
     } else {
       img.classList.add('hidden');
