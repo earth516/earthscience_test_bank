@@ -964,7 +964,7 @@
     const qs = allQuestions.filter(q => 
       q.소단원 === currentSubUnit.이름 && q.관련개념 === concept
     );
-    quizQuestions = shuffle(qs);
+    quizQuestions = orderByDifficulty(qs);
     currentIndex = 0;
     correctCount = 0;
     
@@ -1135,7 +1135,7 @@
     mockCount = count;
     currentConcept = null;
     
-    quizQuestions = shuffle(pool).slice(0, count);   // 랜덤 N문제
+    quizQuestions = orderByDifficulty(shuffle(pool).slice(0, count));   // 랜덤 N개 → 저→중→고 정렬
     currentIndex = 0;
     correctCount = 0;
     
@@ -1158,6 +1158,17 @@
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+  }
+  
+  // 난이도순 정렬: 저급 → 중급 → 고급 → (미지정), 같은 난이도 안에선 랜덤
+  function orderByDifficulty(arr) {
+    const rank = { '저급': 0, '중급': 1, '고급': 2 };
+    const groups = [[], [], [], []];   // 저/중/고/기타
+    arr.forEach(q => {
+      const d = String(q.난이도 || '').trim();
+      groups[d in rank ? rank[d] : 3].push(q);
+    });
+    return groups.reduce((out, g) => out.concat(shuffle(g)), []);
   }
   
   // ===== 정답 파싱 =====
