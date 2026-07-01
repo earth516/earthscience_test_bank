@@ -125,27 +125,33 @@
       margin: 22px 0 10px;
     }
     .mock-hint { font-family: 'Gowun Dodum', sans-serif; font-size: 13px; color: var(--text-light); font-weight: normal; }
-    .mock-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
-    .mock-mini {
-      background: #f1f5f9; color: var(--text-light);
-      font-size: 13px; padding: 6px 12px; border-radius: 8px;
-    }
-    .mock-mini:hover { background: #e2e8f0; }
-    .mock-group-label {
-      font-weight: bold; color: var(--text-light); font-size: 13px;
-      margin: 12px 0 6px;
-    }
-    .mock-unit {
+    .mock-master {
       display: flex; align-items: center; gap: 10px;
-      padding: 11px 14px; margin-bottom: 8px;
-      background: white; border: 2px solid #e5e7eb; border-radius: 12px;
-      cursor: pointer; transition: all 0.15s;
+      font-weight: bold; color: var(--text); cursor: pointer; margin-bottom: 10px;
     }
-    .mock-unit:hover { border-color: var(--primary); }
-    .mock-unit.on { border-color: var(--primary); background: #eef2ff; }
-    .mock-unit input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; margin: 0; }
-    .mock-unit .u-name { flex: 1; }
-    .mock-unit .u-count { color: var(--text-light); font-size: 13px; }
+    .mock-master input { width: 20px; height: 20px; accent-color: var(--primary); margin: 0; }
+    .mock-tree { }
+    .mock-mid-block {
+      border: 2px solid #e5e7eb; border-radius: 12px;
+      padding: 6px 10px; margin-bottom: 10px;
+    }
+    .mock-mid {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 4px; cursor: pointer; font-weight: bold; color: var(--text);
+    }
+    .mock-mid.on { color: var(--primary); }
+    .mock-mid input { width: 20px; height: 20px; accent-color: var(--primary); flex: none; margin: 0; }
+    .mock-mid .m-name { flex: 1; }
+    .mock-mid .m-count { color: var(--text-light); font-size: 13px; font-weight: normal; }
+    .mock-subs { padding-left: 18px; border-top: 1px dashed #e5e7eb; margin-top: 2px; padding-top: 4px; }
+    .mock-sub {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 4px; cursor: pointer; color: var(--text-light);
+    }
+    .mock-sub.on { color: var(--text); }
+    .mock-sub input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; margin: 0; }
+    .mock-sub .s-name { flex: 1; }
+    .mock-sub .s-count { font-size: 12px; opacity: 0.7; }
     .mock-count-row { display: flex; gap: 10px; }
     .mock-count {
       flex: 1; background: #f1f5f9; color: var(--text-light);
@@ -536,14 +542,14 @@
   <div id="mockScreen" class="card hidden">
     <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
     <h2>📝 모의고사 만들기</h2>
-    <p style="color: var(--text-light); margin-top:4px;">범위(중단원)를 고르고 문제 수를 정해요</p>
+    <p style="color: var(--text-light); margin-top:4px;">범위(중단원·소단원)를 고르고 문제 수를 정해요</p>
 
-    <div class="mock-section-title">1. 범위 선택 <span class="mock-hint">(여러 개 선택 가능)</span></div>
-    <div class="mock-toolbar">
-      <button class="mock-mini" onclick="setAllMockUnits(true)">전체 선택</button>
-      <button class="mock-mini" onclick="setAllMockUnits(false)">전체 해제</button>
-    </div>
-    <div id="mockUnitList"></div>
+    <div class="mock-section-title">1. 범위 선택 <span class="mock-hint">(원하는 범위만 체크)</span></div>
+    <label class="mock-master">
+      <input type="checkbox" id="mockMaster" onchange="onMasterToggle(this)">
+      <span>전체 선택</span>
+    </label>
+    <div id="mockUnitList" class="mock-tree"></div>
 
     <div class="mock-section-title">2. 문제 수</div>
     <div class="mock-count-row" id="mockCountRow">
@@ -945,61 +951,105 @@
   }
   
   // ===== 모의고사 =====
-  // 중단원 목록 만들기 (대단원별로 묶어서)
-  function getMidUnits() {
-    const map = new Map();  // 중단원 → {대단원, 코드, count}
+  // 중단원 → 소단원 트리 만들기 (입력 순서 유지)
+  function getMockTree() {
+    const mids = [];               // [{중단원, 대단원, 코드, count, subs:[{소단원,count}]}]
+    const midMap = new Map();
     allQuestions.forEach(q => {
-      if (!q.중단원) return;
-      if (!map.has(q.중단원)) {
-        map.set(q.중단원, { 중단원: q.중단원, 대단원: q.대단원 || '', 코드: partCode(q.문제ID), count: 0 });
+      if (!q.중단원 || !q.소단원) return;
+      let mid = midMap.get(q.중단원);
+      if (!mid) {
+        mid = { 중단원: q.중단원, 대단원: q.대단원 || '', 코드: partCode(q.문제ID), count: 0, subs: [], _subMap: new Map() };
+        midMap.set(q.중단원, mid);
+        mids.push(mid);
       }
-      map.get(q.중단원).count++;
+      mid.count++;
+      let sub = mid._subMap.get(q.소단원);
+      if (!sub) { sub = { 소단원: q.소단원, count: 0 }; mid._subMap.set(q.소단원, sub); mid.subs.push(sub); }
+      sub.count++;
     });
-    return Array.from(map.values());
+    return mids;
   }
   
   function openMockSetup() {
-    const units = getMidUnits();
+    const tree = getMockTree();
     const listEl = document.getElementById('mockUnitList');
     
-    if (units.length === 0) {
+    if (tree.length === 0) {
       listEl.innerHTML = '<p style="color:var(--text-light)">아직 문제가 없어요</p>';
     } else {
-      // 대단원별로 그룹핑
-      const groups = {};
-      units.forEach(u => { (groups[u.대단원] = groups[u.대단원] || []).push(u); });
       let html = '';
-      Object.keys(groups).forEach(daedan => {
-        const icon = PART_ICON[groups[daedan][0].코드] || '📘';
-        html += `<div class="mock-group-label">${icon} ${daedan || '기타'}</div>`;
-        groups[daedan].forEach(u => {
-          const safe = u.중단원.replace(/"/g, '&quot;');
-          html += `<label class="mock-unit">
-            <input type="checkbox" value="${safe}" onchange="onMockUnitToggle(this)">
-            <span class="u-name">${u.중단원}</span>
-            <span class="u-count">${u.count}문제</span>
+      tree.forEach((mid, mi) => {
+        const icon = PART_ICON[mid.코드] || '📘';
+        const midName = (mid.대단원 ? mid.대단원 + ' · ' : '') + mid.중단원;
+        html += `<div class="mock-mid-block">
+          <label class="mock-mid">
+            <input type="checkbox" class="mid-cb" data-mid="${mi}" onchange="onMidToggle(this)">
+            <span class="m-name">${icon} ${midName}</span>
+            <span class="m-count">${mid.count}문제</span>
+          </label>
+          <div class="mock-subs">`;
+        mid.subs.forEach(sub => {
+          const val = sub.소단원.replace(/"/g, '&quot;');
+          html += `<label class="mock-sub">
+            <input type="checkbox" class="sub-cb" data-mid="${mi}" value="${val}" onchange="onSubToggle(this)">
+            <span class="s-name">${sub.소단원}</span>
+            <span class="s-count">${sub.count}</span>
           </label>`;
         });
+        html += `</div></div>`;
       });
       listEl.innerHTML = html;
     }
     
-    setMockCount(mockCount);   // 기본 문제 수 표시
+    refreshMidStates();
+    setMockCount(mockCount);
     updateMockInfo();
     showScreen('mockScreen');
   }
   
-  function onMockUnitToggle(cb) {
-    cb.closest('.mock-unit').classList.toggle('on', cb.checked);
+  // 소단원 하나 토글 → 부모(중단원)·전체 상태 갱신
+  function onSubToggle(cb) {
+    cb.closest('.mock-sub').classList.toggle('on', cb.checked);
+    refreshMidStates();
     updateMockInfo();
   }
   
-  function setAllMockUnits(on) {
-    document.querySelectorAll('#mockUnitList input[type=checkbox]').forEach(cb => {
-      cb.checked = on;
-      cb.closest('.mock-unit').classList.toggle('on', on);
+  // 중단원 토글 → 그 아래 소단원 전부 선택/해제
+  function onMidToggle(cb) {
+    const mi = cb.dataset.mid;
+    document.querySelectorAll(`.sub-cb[data-mid="${mi}"]`).forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
     });
+    refreshMidStates();
     updateMockInfo();
+  }
+  
+  // 전체 선택 토글
+  function onMasterToggle(cb) {
+    document.querySelectorAll('#mockUnitList .sub-cb').forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
+    });
+    refreshMidStates();
+    updateMockInfo();
+  }
+  
+  // 중단원·전체 체크박스의 체크/부분선택(–) 상태 다시 계산
+  function refreshMidStates() {
+    document.querySelectorAll('.mid-cb').forEach(mid => {
+      const subs = Array.from(document.querySelectorAll(`.sub-cb[data-mid="${mid.dataset.mid}"]`));
+      const on = subs.filter(s => s.checked).length;
+      mid.checked = on === subs.length && subs.length > 0;
+      mid.indeterminate = on > 0 && on < subs.length;
+      mid.closest('.mock-mid').classList.toggle('on', mid.checked);
+    });
+    const allSubs = Array.from(document.querySelectorAll('#mockUnitList .sub-cb'));
+    const onAll = allSubs.filter(s => s.checked).length;
+    const master = document.getElementById('mockMaster');
+    master.checked = onAll === allSubs.length && allSubs.length > 0;
+    master.indeterminate = onAll > 0 && onAll < allSubs.length;
   }
   
   function setMockCount(n) {
@@ -1010,8 +1060,9 @@
     updateMockInfo();
   }
   
+  // 선택된 소단원 이름 목록
   function getCheckedMockUnits() {
-    return Array.from(document.querySelectorAll('#mockUnitList input:checked')).map(cb => cb.value);
+    return Array.from(document.querySelectorAll('#mockUnitList .sub-cb:checked')).map(cb => cb.value);
   }
   
   function updateMockInfo() {
@@ -1023,7 +1074,7 @@
       startBtn.disabled = true;
       return;
     }
-    const pool = allQuestions.filter(q => checked.includes(q.중단원));
+    const pool = allQuestions.filter(q => checked.includes(q.소단원));
     const willBe = Math.min(mockCount, pool.length);
     info.innerHTML = `선택한 범위 <strong>${pool.length}문제</strong> 중 <strong>${willBe}문제</strong> 출제`;
     startBtn.disabled = pool.length === 0;
@@ -1037,11 +1088,11 @@
   
   // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
   function runMock(units, count) {
-    const pool = allQuestions.filter(q => units.includes(q.중단원));
+    const pool = allQuestions.filter(q => units.includes(q.소단원));
     if (pool.length === 0) return;
     
     isMock = true;
-    mockUnits = units.slice();
+    mockUnits = units.slice();       // 선택된 소단원 목록
     mockCount = count;
     currentConcept = null;
     
