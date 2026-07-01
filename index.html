@@ -110,6 +110,52 @@
       margin-bottom: 16px;
     }
     .btn-back:hover { color: var(--primary); }
+    /* 모의고사 만들기 */
+    .btn-mock {
+      width: 100%;
+      margin-top: 12px;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    }
+    .btn-mock:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .mock-section-title {
+      font-family: 'Jua', sans-serif;
+      font-size: 18px;
+      color: var(--text);
+      margin: 22px 0 10px;
+    }
+    .mock-hint { font-family: 'Gowun Dodum', sans-serif; font-size: 13px; color: var(--text-light); font-weight: normal; }
+    .mock-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+    .mock-mini {
+      background: #f1f5f9; color: var(--text-light);
+      font-size: 13px; padding: 6px 12px; border-radius: 8px;
+    }
+    .mock-mini:hover { background: #e2e8f0; }
+    .mock-group-label {
+      font-weight: bold; color: var(--text-light); font-size: 13px;
+      margin: 12px 0 6px;
+    }
+    .mock-unit {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; margin-bottom: 8px;
+      background: white; border: 2px solid #e5e7eb; border-radius: 12px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .mock-unit:hover { border-color: var(--primary); }
+    .mock-unit.on { border-color: var(--primary); background: #eef2ff; }
+    .mock-unit input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; margin: 0; }
+    .mock-unit .u-name { flex: 1; }
+    .mock-unit .u-count { color: var(--text-light); font-size: 13px; }
+    .mock-count-row { display: flex; gap: 10px; }
+    .mock-count {
+      flex: 1; background: #f1f5f9; color: var(--text-light);
+      border: 2px solid transparent; border-radius: 12px; padding: 12px;
+    }
+    .mock-count.on { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+    .mock-info {
+      margin: 18px 0 12px; padding: 12px 14px; border-radius: 12px;
+      background: #f8fafc; color: var(--text-light); font-size: 14px; text-align: center;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -435,6 +481,8 @@
       <button id="searchClearBtn" class="search-clear hidden" onclick="clearSearch()">✕</button>
     </div>
     
+    <button class="btn-mock" onclick="openMockSetup()">📝 모의고사 만들기</button>
+    
     <!-- 검색 결과 영역 -->
     <div id="searchResultArea" class="hidden">
       <div class="search-result-label" id="searchResultLabel"></div>
@@ -460,9 +508,33 @@
     <div id="conceptGrid" class="grid"></div>
   </div>
 
+  <!-- 모의고사 만들기 -->
+  <div id="mockScreen" class="card hidden">
+    <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
+    <h2>📝 모의고사 만들기</h2>
+    <p style="color: var(--text-light); margin-top:4px;">범위(중단원)를 고르고 문제 수를 정해요</p>
+
+    <div class="mock-section-title">1. 범위 선택 <span class="mock-hint">(여러 개 선택 가능)</span></div>
+    <div class="mock-toolbar">
+      <button class="mock-mini" onclick="setAllMockUnits(true)">전체 선택</button>
+      <button class="mock-mini" onclick="setAllMockUnits(false)">전체 해제</button>
+    </div>
+    <div id="mockUnitList"></div>
+
+    <div class="mock-section-title">2. 문제 수</div>
+    <div class="mock-count-row" id="mockCountRow">
+      <button class="mock-count" data-n="10" onclick="setMockCount(10)">10문제</button>
+      <button class="mock-count" data-n="20" onclick="setMockCount(20)">20문제</button>
+      <button class="mock-count" data-n="30" onclick="setMockCount(30)">30문제</button>
+    </div>
+
+    <div class="mock-info" id="mockInfo"></div>
+    <button class="btn-primary" id="mockStartBtn" onclick="startMockExam()">모의고사 시작 🚀</button>
+  </div>
+
   <!-- 문제 풀이 -->
   <div id="quizScreen" class="card hidden">
-    <button class="btn-back" onclick="quitQuiz()">← 개념 선택으로</button>
+    <button class="btn-back" id="quizBackBtn" onclick="quitQuiz()">← 개념 선택으로</button>
     <div class="breadcrumb" id="quizBreadcrumb"></div>
     <div class="progress-text">
       <span id="progressText"></span>
@@ -528,6 +600,9 @@
   let correctCount = 0;
   let wrongAttempts = 0;              // 현재 문제 오답 제출 횟수
   const REVEAL_AFTER = 3;            // 오답 N번이면 자동으로 정답 공개
+  let isMock = false;               // 모의고사 모드 여부
+  let mockCount = 20;               // 선택된 문제 수 (10/20/30)
+  let mockUnits = [];               // 선택된 중단원 이름 목록 (다시 풀기용)
   
   async function apiCall(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
@@ -536,7 +611,7 @@
   }
   
   function showScreen(id) {
-    ['loginScreen', 'subUnitScreen', 'conceptScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -812,6 +887,7 @@
   
   // ===== 퀴즈 =====
   function startQuiz(concept) {
+    isMock = false;
     currentConcept = concept;
     const qs = allQuestions.filter(q => 
       q.소단원 === currentSubUnit.이름 && q.관련개념 === concept
@@ -820,6 +896,7 @@
     currentIndex = 0;
     correctCount = 0;
     
+    document.getElementById('quizBackBtn').textContent = '← 개념 선택으로';
     const icon = PART_ICON[currentSubUnit.코드] || '📘';
     document.getElementById('quizBreadcrumb').innerHTML = `
       <span class="breadcrumb-icon">${icon}</span>
@@ -837,8 +914,126 @@
   }
   
   function retryQuiz() {
+    if (isMock) { runMock(mockUnits, mockCount); return; }
     if (currentSubUnit && currentConcept) startQuiz(currentConcept);
     else goToSubUnitScreen();
+  }
+  
+  // ===== 모의고사 =====
+  // 중단원 목록 만들기 (대단원별로 묶어서)
+  function getMidUnits() {
+    const map = new Map();  // 중단원 → {대단원, 코드, count}
+    allQuestions.forEach(q => {
+      if (!q.중단원) return;
+      if (!map.has(q.중단원)) {
+        map.set(q.중단원, { 중단원: q.중단원, 대단원: q.대단원 || '', 코드: partCode(q.문제ID), count: 0 });
+      }
+      map.get(q.중단원).count++;
+    });
+    return Array.from(map.values());
+  }
+  
+  function openMockSetup() {
+    const units = getMidUnits();
+    const listEl = document.getElementById('mockUnitList');
+    
+    if (units.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 문제가 없어요</p>';
+    } else {
+      // 대단원별로 그룹핑
+      const groups = {};
+      units.forEach(u => { (groups[u.대단원] = groups[u.대단원] || []).push(u); });
+      let html = '';
+      Object.keys(groups).forEach(daedan => {
+        const icon = PART_ICON[groups[daedan][0].코드] || '📘';
+        html += `<div class="mock-group-label">${icon} ${daedan || '기타'}</div>`;
+        groups[daedan].forEach(u => {
+          const safe = u.중단원.replace(/"/g, '&quot;');
+          html += `<label class="mock-unit">
+            <input type="checkbox" value="${safe}" onchange="onMockUnitToggle(this)">
+            <span class="u-name">${u.중단원}</span>
+            <span class="u-count">${u.count}문제</span>
+          </label>`;
+        });
+      });
+      listEl.innerHTML = html;
+    }
+    
+    setMockCount(mockCount);   // 기본 문제 수 표시
+    updateMockInfo();
+    showScreen('mockScreen');
+  }
+  
+  function onMockUnitToggle(cb) {
+    cb.closest('.mock-unit').classList.toggle('on', cb.checked);
+    updateMockInfo();
+  }
+  
+  function setAllMockUnits(on) {
+    document.querySelectorAll('#mockUnitList input[type=checkbox]').forEach(cb => {
+      cb.checked = on;
+      cb.closest('.mock-unit').classList.toggle('on', on);
+    });
+    updateMockInfo();
+  }
+  
+  function setMockCount(n) {
+    mockCount = n;
+    document.querySelectorAll('#mockCountRow .mock-count').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.n) === n);
+    });
+    updateMockInfo();
+  }
+  
+  function getCheckedMockUnits() {
+    return Array.from(document.querySelectorAll('#mockUnitList input:checked')).map(cb => cb.value);
+  }
+  
+  function updateMockInfo() {
+    const checked = getCheckedMockUnits();
+    const info = document.getElementById('mockInfo');
+    const startBtn = document.getElementById('mockStartBtn');
+    if (checked.length === 0) {
+      info.textContent = '범위를 하나 이상 선택해 주세요';
+      startBtn.disabled = true;
+      return;
+    }
+    const pool = allQuestions.filter(q => checked.includes(q.중단원));
+    const willBe = Math.min(mockCount, pool.length);
+    info.innerHTML = `선택한 범위 <strong>${pool.length}문제</strong> 중 <strong>${willBe}문제</strong> 출제`;
+    startBtn.disabled = pool.length === 0;
+  }
+  
+  function startMockExam() {
+    const checked = getCheckedMockUnits();
+    if (checked.length === 0) return;
+    runMock(checked, mockCount);
+  }
+  
+  // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
+  function runMock(units, count) {
+    const pool = allQuestions.filter(q => units.includes(q.중단원));
+    if (pool.length === 0) return;
+    
+    isMock = true;
+    mockUnits = units.slice();
+    mockCount = count;
+    currentConcept = null;
+    
+    quizQuestions = shuffle(pool).slice(0, count);   // 랜덤 N문제
+    currentIndex = 0;
+    correctCount = 0;
+    
+    document.getElementById('quizBackBtn').textContent = '← 모의고사 설정으로';
+    document.getElementById('quizBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">📝</span>
+      <span>모의고사</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${quizQuestions.length}문제</span>
+    `;
+    
+    showScreen('quizScreen');
+    showQuestion();
   }
   
   function shuffle(arr) {
@@ -1119,9 +1314,9 @@
   function showResult() {
     const total = quizQuestions.length;
     const pct = total ? Math.round((correctCount / total) * 100) : 0;
-    const concept = currentConcept || '이 개념';
+    const heading = isMock ? '모의고사' : ((currentConcept || '이 개념') + ' 개념');
     document.getElementById('completeMsg').innerHTML =
-      `${concept} 개념<br><span class="pct">${pct}%</span> 완료!`;
+      `${heading}<br><span class="pct">${pct}%</span> 완료!`;
     let comment = '';
     if (pct === 100) comment = '🌟 완벽해요!';
     else if (pct >= 80) comment = '👏 잘했어요!';
@@ -1135,6 +1330,10 @@
   function quitQuiz() {
     if (currentIndex > 0 || correctCount > 0) {
       if (!confirm('정말 그만 푸시겠어요?')) return;
+    }
+    if (isMock) {
+      openMockSetup();   // 모의고사 설정 화면으로
+      return;
     }
     // 같은 소단원의 개념 선택 화면으로
     if (currentSubUnit) {
