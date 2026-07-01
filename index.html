@@ -265,6 +265,27 @@
     .diff-mid  { background: #fef9c3; color: #a16207; }   /* 중급 */
     .diff-high { background: #fee2e2; color: #b91c1c; }   /* 고급 */
     .diff-etc  { background: #e2e8f0; color: #475569; }   /* 기타 값 */
+    /* 로그인 하단 안내 */
+    .login-footer {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      text-align: center;
+      line-height: 1.6;
+    }
+    .login-footer .report-note {
+      font-size: 13px;
+      color: var(--text);
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+    }
+    .login-footer .copyright { font-size: 11px; color: var(--text-light); margin: 0; }
+    .login-footer .contact { font-size: 11px; color: var(--text-light); margin: 2px 0 0; }
+    .login-footer .contact a { color: var(--primary); text-decoration: none; }
+    .login-footer .contact a:hover { text-decoration: underline; }
     .question-img {
       max-width: 100%;
       border-radius: 12px;
@@ -509,6 +530,12 @@
     <input type="text" id="studentIdInput" placeholder="예: 20101" onkeypress="if(event.key==='Enter')login()">
     <button class="btn-primary" onclick="login()">입장하기</button>
     <p id="loginMsg" class="msg"></p>
+
+    <div class="login-footer">
+      <p class="report-note">🎁 문제 오류·오탈자 제보는 소소한 선물 증정 😮🥵</p>
+      <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
+      <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
+    </div>
   </div>
 
   <!-- 소단원 선택 -->
@@ -994,12 +1021,10 @@
     } else {
       let html = '';
       tree.forEach((mid, mi) => {
-        const icon = PART_ICON[mid.코드] || '📘';
-        const midName = (mid.대단원 ? mid.대단원 + ' · ' : '') + mid.중단원;
         html += `<div class="mock-mid-block">
           <label class="mock-mid">
             <input type="checkbox" class="mid-cb" data-mid="${mi}" onchange="onMidToggle(this)">
-            <span class="m-name">${icon} ${midName}</span>
+            <span class="m-name">${mid.중단원}</span>
             <span class="m-count">${mid.count}문제</span>
           </label>
           <div class="mock-subs">`;
