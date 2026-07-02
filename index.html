@@ -639,7 +639,6 @@
   <div id="conceptModeScreen" class="card hidden">
     <button class="btn-back" onclick="goToConceptMode()">← 뒤로</button>
     <h2>📝 지문 빈칸 채우기</h2>
-    <p style="color: var(--text-light); margin-top:4px;">풀 지문을 골라주세요</p>
     <label class="mock-master">
       <input type="checkbox" id="conceptMaster" onchange="onConceptMasterToggle(this)">
       <span>전체 선택</span>
@@ -725,7 +724,7 @@
     
     <!-- 검색창 -->
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="개념 검색 (예: 오존, 염분)" oninput="handleSearch()">
+      <input type="text" id="searchInput" placeholder="개념 검색 (예: 악기상, 은하)" oninput="handleSearch()">
       <button id="searchClearBtn" class="search-clear hidden" onclick="clearSearch()">✕</button>
     </div>
     
