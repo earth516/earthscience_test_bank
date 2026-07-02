@@ -1027,7 +1027,13 @@
     showScreen('conceptModeScreen');
   }
   
-  // 소단원 버튼 목록 (시트 입력 순서 유지)
+  let conceptOrderMode = 'seq';   // 'seq'=시트 순서, 'random'=랜덤
+  function setConceptOrderMode(m) {
+    conceptOrderMode = m;
+    renderConceptList();   // 토글 표시 갱신
+  }
+  
+  // 소단원 버튼 목록 (시트 입력 순서 유지) + 순서 토글
   function renderConceptList() {
     const listEl = document.getElementById('conceptPassageList');
     const passages = (allConcepts || []).filter(c => c.지문 && c.제목);
@@ -1047,7 +1053,12 @@
       s.count++;
     });
     
-    let html = '';
+    // 순서 토글
+    let html = `<div class="mock-count-row" style="margin-bottom:14px;">
+      <button class="mock-count ${conceptOrderMode === 'seq' ? 'on' : ''}" onclick="setConceptOrderMode('seq')">순서대로</button>
+      <button class="mock-count ${conceptOrderMode === 'random' ? 'on' : ''}" onclick="setConceptOrderMode('random')">랜덤</button>
+    </div>`;
+    
     subs.forEach(s => {
       const safe = s.소단원.replace(/"/g, '&quot;');
       html += `<button class="passage-item" onclick="startConceptSubunit('${safe}')">
@@ -1058,13 +1069,14 @@
     listEl.innerHTML = html;
   }
   
-  // 소단원 클릭 → 그 소단원 지문들을 시트 순서대로 시작
+  // 소단원 클릭 → 그 소단원 지문들을 (순서대로 또는 랜덤) 시작
   function startConceptSubunit(sub) {
     conceptSeq = [];
     allConcepts.forEach((c, idx) => {
       if (c.지문 && c.제목 && (c.소단원 || '기타') === sub) conceptSeq.push(idx);
     });
     if (conceptSeq.length === 0) return;
+    if (conceptOrderMode === 'random') conceptSeq = shuffle(conceptSeq);
     conceptSeqPos = 0;
     openConceptFill(conceptSeq[0]);
   }
