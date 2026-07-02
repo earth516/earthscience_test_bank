@@ -118,6 +118,12 @@
       background: linear-gradient(135deg, var(--primary), #8b5cf6);
     }
     .btn-mock:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn-wrong {
+      width: 100%; margin-top: 10px; color: white;
+      background: linear-gradient(135deg, #f43f5e, #f97316);
+    }
+    .btn-wrong:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn-wrong:disabled { opacity: 0.7; cursor: default; transform: none; }
     .mock-section-title {
       font-family: 'Jua', sans-serif;
       font-size: 18px;
@@ -759,6 +765,7 @@
     </div>
     
     <button class="btn-mock" onclick="openMockSetup()">📝 모의고사 만들기</button>
+    <button class="btn-wrong" id="wrongBtn" onclick="startWrongQuiz()">❌ 틀린 문제 다시 풀기</button>
     
     <!-- 검색 결과 영역 -->
     <div id="searchResultArea" class="hidden">
@@ -881,6 +888,7 @@
   let wrongAttempts = 0;              // 현재 문제 오답 제출 횟수
   const REVEAL_AFTER = 3;            // 오답 N번이면 자동으로 정답 공개
   let isMock = false;               // 모의고사 모드 여부
+  let isWrongQuiz = false;          // 틀린 문제 복습 모드 여부
   let mockCount = 20;               // 선택된 문제 수 (10/20/30)
   let mockUnits = [];               // 선택된 중단원 이름 목록 (다시 풀기용)
   let currentIsChoice = false;      // 현재 문제가 객관식(합답형)인지
@@ -1776,6 +1784,7 @@
   // ===== 퀴즈 =====
   function startQuiz(concept) {
     isMock = false;
+    isWrongQuiz = false;
     currentConcept = concept;
     const qs = allQuestions.filter(q => 
       q.소단원 === currentSubUnit.이름 && q.관련개념 === concept
@@ -1802,6 +1811,7 @@
   }
   
   function retryQuiz() {
+    if (isWrongQuiz) { startWrongQuiz(); return; }
     if (isMock) { runMock(mockUnits, mockCount); return; }
     if (currentSubUnit && currentConcept) startQuiz(currentConcept);
     else goToSubUnitScreen();
@@ -1956,6 +1966,7 @@
     if (pool.length === 0) return;
     
     isMock = true;
+    isWrongQuiz = false;
     mockUnits = units.slice();       // 선택된 (소단원+개념) 복합키 목록
     mockCount = count;
     currentConcept = null;
@@ -1974,6 +1985,52 @@
     
     showScreen('quizScreen');
     showQuestion();
+  }
+  
+  // ===== 틀린 문제 다시 풀기 =====
+  async function startWrongQuiz() {
+    const btn = document.getElementById('wrongBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
+    try {
+      const res = await apiCall({ action: 'getMyStats', studentId: currentStudent.학번 });
+      // 방식 2: 문제별 최근 결과가 X인 것만 (다시 맞힌 건 자동 제외)
+      const latest = {};
+      (res.responses || []).forEach(r => {
+        if (r.문제ID) latest[r.문제ID] = String(r.정답여부).toUpperCase() === 'O';
+      });
+      const wrongIds = Object.keys(latest).filter(id => !latest[id]);
+      // 현재 문제 은행에 있는 것만
+      const qmap = {};
+      allQuestions.forEach(q => { if (q.문제ID) qmap[q.문제ID] = q; });
+      const pool = wrongIds.map(id => qmap[id]).filter(Boolean);
+      
+      if (pool.length === 0) {
+        alert('다시 풀 틀린 문제가 없어요! 🎉');
+        return;
+      }
+      
+      isMock = false;
+      isWrongQuiz = true;
+      currentConcept = null;
+      quizQuestions = orderByDifficulty(pool);   // 저→중→고
+      currentIndex = 0;
+      correctCount = 0;
+      
+      document.getElementById('quizBackBtn').textContent = '← 뒤로';
+      document.getElementById('quizBreadcrumb').innerHTML = `
+        <span class="breadcrumb-icon">❌</span>
+        <span>틀린 문제 복습</span>
+        <span class="breadcrumb-sep">›</span>
+        <span>${quizQuestions.length}문제</span>
+      `;
+      
+      showScreen('quizScreen');
+      showQuestion();
+    } catch (e) {
+      alert('기록을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '❌ 틀린 문제 다시 풀기'; }
+    }
   }
   
   function shuffle(arr) {
@@ -2346,7 +2403,7 @@
   function showResult() {
     const total = quizQuestions.length;
     const pct = total ? Math.round((correctCount / total) * 100) : 0;
-    const heading = isMock ? '모의고사' : ((currentConcept || '이 개념') + ' 개념');
+    const heading = isWrongQuiz ? '틀린 문제 복습' : (isMock ? '모의고사' : ((currentConcept || '이 개념') + ' 개념'));
     document.getElementById('completeMsg').innerHTML =
       `${heading}<br><span class="pct">${pct}%</span> 완료!`;
     let comment = '';
@@ -2362,6 +2419,10 @@
   function quitQuiz() {
     if (currentIndex > 0 || correctCount > 0) {
       if (!confirm('정말 그만 푸시겠어요?')) return;
+    }
+    if (isWrongQuiz) {
+      goToSubUnitScreen();
+      return;
     }
     if (isMock) {
       openMockSetup();   // 모의고사 설정 화면으로
