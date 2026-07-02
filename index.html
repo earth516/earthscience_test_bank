@@ -635,12 +635,22 @@
     </div>
   </div>
 
-  <!-- 개념 확인: 지문 빈칸 소단원 목록 -->
+  <!-- 개념 확인: 지문 빈칸 범위 선택 (소단원 → 지문 체크) -->
   <div id="conceptModeScreen" class="card hidden">
     <button class="btn-back" onclick="goToConceptMode()">← 뒤로</button>
     <h2>📝 지문 빈칸 채우기</h2>
-    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 지문 빈칸을 채워보세요</p>
-    <div id="conceptPassageList"></div>
+    <p style="color: var(--text-light); margin-top:4px;">풀 지문을 골라주세요</p>
+    <label class="mock-master">
+      <input type="checkbox" id="conceptMaster" onchange="onConceptMasterToggle(this)">
+      <span>전체 선택</span>
+    </label>
+    <div id="conceptPassageList" class="mock-tree"></div>
+    <div class="mock-count-row" style="margin-top:16px;">
+      <button class="mock-count on" id="cOrderSeq" onclick="setConceptOrderMode('seq')">순서대로</button>
+      <button class="mock-count" id="cOrderRandom" onclick="setConceptOrderMode('random')">랜덤</button>
+    </div>
+    <div class="mock-info" id="conceptInfo"></div>
+    <button class="btn-primary" id="conceptStartBtn" onclick="startConceptFill()">시작하기 🚀</button>
   </div>
 
   <!-- 개념 확인: 빈칸 채우기 -->
@@ -1030,53 +1040,112 @@
   let conceptOrderMode = 'seq';   // 'seq'=시트 순서, 'random'=랜덤
   function setConceptOrderMode(m) {
     conceptOrderMode = m;
-    renderConceptList();   // 토글 표시 갱신
+    document.getElementById('cOrderSeq').classList.toggle('on', m === 'seq');
+    document.getElementById('cOrderRandom').classList.toggle('on', m === 'random');
   }
   
-  // 소단원 버튼 목록 (시트 입력 순서 유지) + 순서 토글
+  // 소단원(부모) → 지문 제목(체크) 트리
   function renderConceptList() {
     const listEl = document.getElementById('conceptPassageList');
     const passages = (allConcepts || []).filter(c => c.지문 && c.제목);
     
     if (passages.length === 0) {
       listEl.innerHTML = '<p style="color:var(--text-light)">아직 개념 지문이 없어요</p>';
+      document.getElementById('conceptStartBtn').disabled = true;
       return;
     }
     
-    // 소단원별 지문 개수 (입력 순서 유지)
-    const subs = [];
-    const smap = new Map();
-    passages.forEach(c => {
+    // 소단원별 그룹 (입력 순서 유지), 각 지문은 allConcepts 인덱스 보관
+    const groups = [];
+    const gmap = new Map();
+    allConcepts.forEach((c, idx) => {
+      if (!(c.지문 && c.제목)) return;
       const key = c.소단원 || '기타';
-      let s = smap.get(key);
-      if (!s) { s = { 소단원: key, count: 0 }; smap.set(key, s); subs.push(s); }
-      s.count++;
+      let g = gmap.get(key);
+      if (!g) { g = { 소단원: key, items: [] }; gmap.set(key, g); groups.push(g); }
+      g.items.push({ 제목: c.제목, idx });
     });
     
-    // 순서 토글
-    let html = `<div class="mock-count-row" style="margin-bottom:14px;">
-      <button class="mock-count ${conceptOrderMode === 'seq' ? 'on' : ''}" onclick="setConceptOrderMode('seq')">순서대로</button>
-      <button class="mock-count ${conceptOrderMode === 'random' ? 'on' : ''}" onclick="setConceptOrderMode('random')">랜덤</button>
-    </div>`;
-    
-    subs.forEach(s => {
-      const safe = s.소단원.replace(/"/g, '&quot;');
-      html += `<button class="passage-item" onclick="startConceptSubunit('${safe}')">
-        <span class="p-title">${s.소단원}</span>
-        <span class="p-blanks">지문 ${s.count}개</span>
-      </button>`;
+    let html = '';
+    groups.forEach((g, gi) => {
+      html += `<div class="mock-mid-block">
+        <label class="mock-mid">
+          <input type="checkbox" class="c-mid-cb" data-mid="${gi}" onchange="onConceptMidToggle(this)">
+          <span class="m-name">${g.소단원}</span>
+          <span class="m-count">${g.items.length}개</span>
+        </label>
+        <div class="mock-subs">`;
+      g.items.forEach(it => {
+        html += `<label class="mock-sub">
+          <input type="checkbox" class="c-sub-cb" data-mid="${gi}" value="${it.idx}" onchange="onConceptSubToggle(this)">
+          <span class="s-name">${it.제목}</span>
+        </label>`;
+      });
+      html += `</div></div>`;
     });
     listEl.innerHTML = html;
+    
+    refreshConceptMidStates();
+    updateConceptInfo();
   }
   
-  // 소단원 클릭 → 그 소단원 지문들을 (순서대로 또는 랜덤) 시작
-  function startConceptSubunit(sub) {
-    conceptSeq = [];
-    allConcepts.forEach((c, idx) => {
-      if (c.지문 && c.제목 && (c.소단원 || '기타') === sub) conceptSeq.push(idx);
+  function onConceptSubToggle(cb) {
+    cb.closest('.mock-sub').classList.toggle('on', cb.checked);
+    refreshConceptMidStates();
+    updateConceptInfo();
+  }
+  function onConceptMidToggle(cb) {
+    document.querySelectorAll(`.c-sub-cb[data-mid="${cb.dataset.mid}"]`).forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
     });
-    if (conceptSeq.length === 0) return;
-    if (conceptOrderMode === 'random') conceptSeq = shuffle(conceptSeq);
+    refreshConceptMidStates();
+    updateConceptInfo();
+  }
+  function onConceptMasterToggle(cb) {
+    document.querySelectorAll('#conceptPassageList .c-sub-cb').forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
+    });
+    refreshConceptMidStates();
+    updateConceptInfo();
+  }
+  function refreshConceptMidStates() {
+    document.querySelectorAll('.c-mid-cb').forEach(mid => {
+      const subs = Array.from(document.querySelectorAll(`.c-sub-cb[data-mid="${mid.dataset.mid}"]`));
+      const on = subs.filter(s => s.checked).length;
+      mid.checked = on === subs.length && subs.length > 0;
+      mid.indeterminate = on > 0 && on < subs.length;
+      mid.closest('.mock-mid').classList.toggle('on', mid.checked);
+    });
+    const all = Array.from(document.querySelectorAll('#conceptPassageList .c-sub-cb'));
+    const onAll = all.filter(s => s.checked).length;
+    const master = document.getElementById('conceptMaster');
+    master.checked = onAll === all.length && all.length > 0;
+    master.indeterminate = onAll > 0 && onAll < all.length;
+  }
+  function getCheckedConcepts() {
+    return Array.from(document.querySelectorAll('#conceptPassageList .c-sub-cb:checked')).map(cb => Number(cb.value));
+  }
+  function updateConceptInfo() {
+    const checked = getCheckedConcepts();
+    const info = document.getElementById('conceptInfo');
+    const startBtn = document.getElementById('conceptStartBtn');
+    if (checked.length === 0) {
+      info.textContent = '풀 지문을 하나 이상 선택해 주세요';
+      startBtn.disabled = true;
+    } else {
+      info.innerHTML = `선택한 지문 <strong>${checked.length}개</strong>`;
+      startBtn.disabled = false;
+    }
+  }
+  
+  // 체크한 지문들로 시작 (순서대로 / 랜덤)
+  function startConceptFill() {
+    let seq = getCheckedConcepts();   // allConcepts 인덱스 (문서 순서)
+    if (seq.length === 0) return;
+    if (conceptOrderMode === 'random') seq = shuffle(seq);
+    conceptSeq = seq;
     conceptSeqPos = 0;
     openConceptFill(conceptSeq[0]);
   }
