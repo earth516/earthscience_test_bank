@@ -582,7 +582,7 @@
   <div id="mockScreen" class="card hidden">
     <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
     <h2>📝 모의고사 만들기</h2>
-    <p style="color: var(--text-light); margin-top:4px;">범위(중단원·소단원)를 고르고 문제 수를 정해요</p>
+    <p style="color: var(--text-light); margin-top:4px;">범위(소단원·관련개념)를 고르고 문제 수를 정해요</p>
 
     <div class="mock-section-title">1. 범위 선택 <span class="mock-hint">(원하는 범위만 체크)</span></div>
     <label class="mock-master">
@@ -992,24 +992,27 @@
   }
   
   // ===== 모의고사 =====
-  // 중단원 → 소단원 트리 만들기 (입력 순서 유지)
+  // 소단원 → 관련개념 트리 만들기 (입력 순서 유지)
+  const MOCK_SEP = '|||';
+  function mockKey(sub, concept) { return sub + MOCK_SEP + concept; }
+  
   function getMockTree() {
-    const mids = [];               // [{중단원, 대단원, 코드, count, subs:[{소단원,count}]}]
-    const midMap = new Map();
+    const subs = [];               // [{소단원, count, concepts:[{관련개념,count}]}]
+    const subMap = new Map();
     allQuestions.forEach(q => {
-      if (!q.중단원 || !q.소단원) return;
-      let mid = midMap.get(q.중단원);
-      if (!mid) {
-        mid = { 중단원: q.중단원, 대단원: q.대단원 || '', 코드: partCode(q.문제ID), count: 0, subs: [], _subMap: new Map() };
-        midMap.set(q.중단원, mid);
-        mids.push(mid);
+      if (!q.소단원 || !q.관련개념) return;
+      let sub = subMap.get(q.소단원);
+      if (!sub) {
+        sub = { 소단원: q.소단원, count: 0, concepts: [], _cMap: new Map() };
+        subMap.set(q.소단원, sub);
+        subs.push(sub);
       }
-      mid.count++;
-      let sub = mid._subMap.get(q.소단원);
-      if (!sub) { sub = { 소단원: q.소단원, count: 0 }; mid._subMap.set(q.소단원, sub); mid.subs.push(sub); }
       sub.count++;
+      let c = sub._cMap.get(q.관련개념);
+      if (!c) { c = { 관련개념: q.관련개념, count: 0 }; sub._cMap.set(q.관련개념, c); sub.concepts.push(c); }
+      c.count++;
     });
-    return mids;
+    return subs;
   }
   
   function openMockSetup() {
@@ -1020,20 +1023,20 @@
       listEl.innerHTML = '<p style="color:var(--text-light)">아직 문제가 없어요</p>';
     } else {
       let html = '';
-      tree.forEach((mid, mi) => {
+      tree.forEach((sub, si) => {
         html += `<div class="mock-mid-block">
           <label class="mock-mid">
-            <input type="checkbox" class="mid-cb" data-mid="${mi}" onchange="onMidToggle(this)">
-            <span class="m-name">${mid.중단원}</span>
-            <span class="m-count">${mid.count}문제</span>
+            <input type="checkbox" class="mid-cb" data-mid="${si}" onchange="onMidToggle(this)">
+            <span class="m-name">${sub.소단원}</span>
+            <span class="m-count">${sub.count}문제</span>
           </label>
           <div class="mock-subs">`;
-        mid.subs.forEach(sub => {
-          const val = sub.소단원.replace(/"/g, '&quot;');
+        sub.concepts.forEach(c => {
+          const val = mockKey(sub.소단원, c.관련개념).replace(/"/g, '&quot;');
           html += `<label class="mock-sub">
-            <input type="checkbox" class="sub-cb" data-mid="${mi}" value="${val}" onchange="onSubToggle(this)">
-            <span class="s-name">${sub.소단원}</span>
-            <span class="s-count">${sub.count}</span>
+            <input type="checkbox" class="sub-cb" data-mid="${si}" value="${val}" onchange="onSubToggle(this)">
+            <span class="s-name">${c.관련개념}</span>
+            <span class="s-count">${c.count}</span>
           </label>`;
         });
         html += `</div></div>`;
@@ -1047,14 +1050,14 @@
     showScreen('mockScreen');
   }
   
-  // 소단원 하나 토글 → 부모(중단원)·전체 상태 갱신
+  // 관련개념 하나 토글 → 부모(소단원)·전체 상태 갱신
   function onSubToggle(cb) {
     cb.closest('.mock-sub').classList.toggle('on', cb.checked);
     refreshMidStates();
     updateMockInfo();
   }
   
-  // 중단원 토글 → 그 아래 소단원 전부 선택/해제
+  // 소단원 토글 → 그 아래 관련개념 전부 선택/해제
   function onMidToggle(cb) {
     const mi = cb.dataset.mid;
     document.querySelectorAll(`.sub-cb[data-mid="${mi}"]`).forEach(s => {
@@ -1099,9 +1102,15 @@
     updateMockInfo();
   }
   
-  // 선택된 소단원 이름 목록
+  // 선택된 (소단원+관련개념) 복합키 목록
   function getCheckedMockUnits() {
     return Array.from(document.querySelectorAll('#mockUnitList .sub-cb:checked')).map(cb => cb.value);
+  }
+  
+  // 선택된 복합키에 해당하는 문제만 추리기
+  function poolFromUnits(units) {
+    const set = new Set(units);
+    return allQuestions.filter(q => set.has(mockKey(q.소단원, q.관련개념)));
   }
   
   function updateMockInfo() {
@@ -1113,7 +1122,7 @@
       startBtn.disabled = true;
       return;
     }
-    const pool = allQuestions.filter(q => checked.includes(q.소단원));
+    const pool = poolFromUnits(checked);
     const willBe = Math.min(mockCount, pool.length);
     info.innerHTML = `선택한 범위 <strong>${pool.length}문제</strong> 중 <strong>${willBe}문제</strong> 출제`;
     startBtn.disabled = pool.length === 0;
@@ -1127,11 +1136,11 @@
   
   // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
   function runMock(units, count) {
-    const pool = allQuestions.filter(q => units.includes(q.소단원));
+    const pool = poolFromUnits(units);
     if (pool.length === 0) return;
     
     isMock = true;
-    mockUnits = units.slice();       // 선택된 소단원 목록
+    mockUnits = units.slice();       // 선택된 (소단원+개념) 복합키 목록
     mockCount = count;
     currentConcept = null;
     
