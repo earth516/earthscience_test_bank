@@ -785,6 +785,14 @@
   // 휴대폰/브라우저 뒤로가기 → 이전 화면으로
   window.addEventListener('popstate', function (e) {
     const target = (e.state && e.state.screen) ? e.state.screen : 'loginScreen';
+    // 문제 풀이 중이면 그만둘지 확인
+    if (currentScreen === 'quizScreen' && (currentIndex > 0 || correctCount > 0)) {
+      if (!confirm('정말 그만 푸시겠어요?')) {
+        // 취소 → 뒤로가기 무효화(현재 화면 유지)
+        history.pushState({ screen: 'quizScreen' }, '');
+        return;
+      }
+    }
     navByPop = true;
     showScreen(target);
     navByPop = false;
