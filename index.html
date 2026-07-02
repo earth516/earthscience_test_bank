@@ -295,6 +295,24 @@
     }
     .mode-quiz { background: linear-gradient(135deg, var(--primary), #8b5cf6); }
     .mode-concept { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
+    .mode-stats { background: linear-gradient(135deg, #14b8a6, #22c55e); }
+    /* 나의 학습 */
+    .ml-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 22px; }
+    .ml-card { background: #f8fafc; border-radius: 12px; padding: 14px 10px; text-align: center; }
+    .ml-card .lbl { font-size: 12px; color: var(--text-light); }
+    .ml-card .val { font-family: 'Jua', sans-serif; font-size: 26px; color: var(--primary); margin-top: 2px; }
+    .ml-section { font-weight: bold; color: var(--text); margin: 18px 0 10px; }
+    .ml-bar-row { margin-bottom: 12px; }
+    .ml-bar-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+    .ml-bar-track { height: 9px; background: #eef2ff; border-radius: 99px; overflow: hidden; }
+    .ml-bar-fill { height: 100%; border-radius: 99px; }
+    .ml-hi { background: #22c55e; } .ml-hi-t { color: #15803d; }
+    .ml-mid { background: #eab308; } .ml-mid-t { color: #a16207; }
+    .ml-lo { background: #ef4444; } .ml-lo-t { color: #b91c1c; }
+    .ml-review { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 14px 16px; margin-top: 18px; }
+    .ml-review .h { font-weight: bold; color: #b91c1c; margin-bottom: 6px; }
+    .ml-review .b { font-size: 14px; color: #7f1d1d; }
+    .ml-note { font-size: 13px; color: var(--text-light); margin-top: 16px; text-align: center; }
     .mode-card:hover { filter: brightness(1.05); transform: translateY(-1px); }
     .mode-emoji { font-size: 28px; }
     .mode-title { font-family: 'Jua', sans-serif; font-size: 20px; }
@@ -611,9 +629,21 @@
       <button class="mode-card mode-concept" onclick="goToConceptMode()">
         <span class="mode-emoji">📖</span>
         <span class="mode-title">개념 확인하기</span>
-        <span class="mode-desc">교과서 지문 빈칸 채우기</span>
+        <span class="mode-desc">지문 빈칸 채우기 · O/X 퀴즈</span>
+      </button>
+      <button class="mode-card mode-stats" onclick="goToMyLearning()">
+        <span class="mode-emoji">📊</span>
+        <span class="mode-title">나의 학습</span>
+        <span class="mode-desc">개념별 정답률과 약한 부분 확인</span>
       </button>
     </div>
+  </div>
+
+  <!-- 나의 학습 -->
+  <div id="myLearningScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
+    <h2 id="myLearningTitle">📊 나의 학습</h2>
+    <div id="myLearningBody"></div>
   </div>
 
   <!-- 개념 확인: 유형 선택 -->
@@ -865,7 +895,7 @@
   let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
   
   function showScreen(id) {
-    ['loginScreen', 'modeScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1038,6 +1068,99 @@
   
   function goToConceptMode() {
     showScreen('conceptTypeScreen');
+  }
+  
+  // ===== 나의 학습 =====
+  async function goToMyLearning() {
+    showScreen('myLearningScreen');
+    document.getElementById('myLearningTitle').textContent = '📊 ' + (currentStudent.이름 || '나') + '님의 학습';
+    const body = document.getElementById('myLearningBody');
+    body.innerHTML = '<div class="loading-overlay"><div class="spinner"></div>기록을 불러오는 중...</div>';
+    try {
+      const res = await apiCall({ action: 'getMyStats', studentId: currentStudent.학번 });
+      renderMyLearning(res);
+    } catch (e) {
+      body.innerHTML = '<p style="color:var(--text-light)">기록을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.</p>';
+    }
+  }
+  
+  function renderMyLearning(res) {
+    const body = document.getElementById('myLearningBody');
+    const responses = (res && res.responses) || [];
+    const conceptRecs = (res && res.concepts) || [];
+    
+    // 문제ID → 관련개념 매핑 (문제 풀기용)
+    const concLookup = {};
+    allQuestions.forEach(q => { if (q.문제ID) concLookup[q.문제ID] = q.관련개념 || '(기타)'; });
+    
+    // 방식 2: 문제별 '최근 결과'만 (뒤에 나온 기록이 최신 → 덮어씀)
+    const latest = {};
+    responses.forEach(r => { if (r.문제ID) latest[r.문제ID] = String(r.정답여부).toUpperCase() === 'O'; });
+    const qids = Object.keys(latest);
+    
+    // 개념 확인 기록 합산 (점수 "c/t")
+    let cc = 0, ct = 0;
+    conceptRecs.forEach(x => {
+      const m = String(x.점수 || '').match(/(\d+)\s*\/\s*(\d+)/);
+      if (m) { cc += Number(m[1]); ct += Number(m[2]); }
+    });
+    
+    if (qids.length === 0 && ct === 0) {
+      body.innerHTML = '<p style="color:var(--text-light); text-align:center; padding:20px 0;">아직 푼 기록이 없어요.<br>문제를 풀면 여기에 정답률이 쌓여요! 💪</p>';
+      return;
+    }
+    
+    const totalQ = qids.length;
+    const correctQ = qids.filter(id => latest[id]).length;
+    const overallPct = totalQ ? Math.round(correctQ / totalQ * 100) : 0;
+    
+    // 개념별 집계
+    const byC = {};
+    qids.forEach(id => {
+      const c = concLookup[id] || '(기타)';
+      if (!byC[c]) byC[c] = { c: 0, t: 0 };
+      byC[c].t++; if (latest[id]) byC[c].c++;
+    });
+    const concepts = Object.keys(byC).map(name => ({
+      name, pct: Math.round(byC[name].c / byC[name].t * 100), t: byC[name].t
+    }));
+    
+    // 요약 카드
+    let html = `<div class="ml-cards">
+      <div class="ml-card"><div class="lbl">푼 문제</div><div class="val">${totalQ}</div></div>
+      <div class="ml-card"><div class="lbl">전체 정답률</div><div class="val">${overallPct}%</div></div>
+      <div class="ml-card"><div class="lbl">푼 개념</div><div class="val">${concepts.length}</div></div>
+    </div>`;
+    
+    // 개념별 정답률 (정답률 높은 순)
+    if (concepts.length > 0) {
+      const sorted = [...concepts].sort((a, b) => b.pct - a.pct);
+      html += `<div class="ml-section">개념별 정답률</div>`;
+      sorted.forEach(c => {
+        const cls = c.pct >= 80 ? 'hi' : c.pct >= 60 ? 'mid' : 'lo';
+        html += `<div class="ml-bar-row">
+          <div class="ml-bar-top"><span>${c.name}</span><span class="ml-${cls}-t">${c.pct}% <span style="color:var(--text-light)">(${c.t}문제)</span></span></div>
+          <div class="ml-bar-track"><div class="ml-bar-fill ml-${cls}" style="width:${c.pct}%"></div></div>
+        </div>`;
+      });
+      
+      // 약한 개념 Top 3 (정답률 낮은 순)
+      const weak = [...concepts].sort((a, b) => a.pct - b.pct).filter(c => c.pct < 80).slice(0, 3);
+      if (weak.length > 0) {
+        html += `<div class="ml-review">
+          <div class="h">📌 집중 복습이 필요한 개념</div>
+          <div class="b">${weak.map(c => `${c.name} (${c.pct}%)`).join(' · ')}</div>
+        </div>`;
+      }
+    }
+    
+    // 개념 확인 학습 요약
+    if (ct > 0) {
+      const cpct = Math.round(cc / ct * 100);
+      html += `<div class="ml-note">📖 개념 확인 학습: ${conceptRecs.length}회 · 빈칸 정답률 ${cpct}%</div>`;
+    }
+    
+    body.innerHTML = html;
   }
   
   // 지문 빈칸 소단원 목록
