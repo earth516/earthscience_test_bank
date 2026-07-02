@@ -1215,14 +1215,14 @@
           input.dataset.answer = answer;
           const longest = answer.split('/').reduce((a, b) => Math.max(a, b.trim().length), 1);
           input.style.width = (longest + 1) + 'em';
-          input.onkeypress = (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const all = Array.from(document.querySelectorAll('#conceptPassage .passage-blank'));
-              const pos = all.indexOf(e.target);
-              if (pos === all.length - 1) gradeConceptFill();   // 마지막 칸 → 채점
-              else all[pos + 1].focus();                        // 아니면 다음 칸
-            }
+          input.onkeydown = (e) => {
+            if (e.key !== 'Enter') return;
+            if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중이면 무시
+            e.preventDefault();
+            const all = Array.from(document.querySelectorAll('#conceptPassage .passage-blank'));
+            const pos = all.indexOf(e.target);
+            if (pos === all.length - 1) gradeConceptFill();   // 마지막 칸 → 채점
+            else all[pos + 1].focus();                        // 아니면 다음 칸
           };
           box.appendChild(input);
         } else {
@@ -1977,12 +1977,13 @@
         input.className = 'blank-input';
         input.dataset.idx = i;
         input.placeholder = blankCount > 1 ? `${i+1}번째 빈칸` : '정답을 입력하세요';
-        input.onkeypress = (e) => {
-          if (e.key === 'Enter') {
-            const inputs = document.querySelectorAll('.blank-input');
-            if (i === inputs.length - 1) submitAnswer();
-            else inputs[i+1].focus();
-          }
+        input.onkeydown = (e) => {
+          if (e.key !== 'Enter') return;
+          if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중이면 무시
+          e.preventDefault();
+          const inputs = document.querySelectorAll('.blank-input');
+          if (i === inputs.length - 1) submitAnswer();
+          else inputs[i+1].focus();
         };
         row.appendChild(input);
         wrap.appendChild(row);
