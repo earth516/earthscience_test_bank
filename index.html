@@ -667,12 +667,22 @@
     </div>
   </div>
 
-  <!-- O/X 퀴즈: 소단원 목록 -->
+  <!-- O/X 퀴즈: 범위 선택 (소단원 체크) -->
   <div id="oxListScreen" class="card hidden">
     <button class="btn-back" onclick="goToConceptMode()">← 뒤로</button>
     <h2>⭕ O / X 퀴즈</h2>
-    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 O·X 문제를 풀어보세요</p>
-    <div id="oxSubunitList"></div>
+    <p style="color: var(--text-light); margin-top:4px;">풀 범위(소단원)를 골라주세요</p>
+    <label class="mock-master">
+      <input type="checkbox" id="oxMaster" onchange="onOXMasterToggle(this)">
+      <span>전체 선택</span>
+    </label>
+    <div id="oxSubunitList" class="mock-tree"></div>
+    <div class="mock-count-row" style="margin-top:16px;">
+      <button class="mock-count on" id="oxOrderRandom" onclick="setOXOrderMode('random')">랜덤</button>
+      <button class="mock-count" id="oxOrderSeq" onclick="setOXOrderMode('seq')">순서대로</button>
+    </div>
+    <div class="mock-info" id="oxInfo"></div>
+    <button class="btn-primary" id="oxStartBtn" onclick="startOX()">시작하기 🚀</button>
   </div>
 
   <!-- O/X 퀴즈: 문제 풀이 -->
@@ -1055,15 +1065,17 @@
       return;
     }
     
-    // 소단원별 그룹 (입력 순서 유지), 각 지문은 allConcepts 인덱스 보관
+    // 소단원별 → 개념(제목)별로 묶기 (입력 순서 유지). 같은 개념의 지문 인덱스를 모음
     const groups = [];
     const gmap = new Map();
     allConcepts.forEach((c, idx) => {
       if (!(c.지문 && c.제목)) return;
       const key = c.소단원 || '기타';
       let g = gmap.get(key);
-      if (!g) { g = { 소단원: key, items: [] }; gmap.set(key, g); groups.push(g); }
-      g.items.push({ 제목: c.제목, idx });
+      if (!g) { g = { 소단원: key, concepts: [], _cmap: new Map() }; gmap.set(key, g); groups.push(g); }
+      let con = g._cmap.get(c.제목);
+      if (!con) { con = { 제목: c.제목, idxs: [] }; g._cmap.set(c.제목, con); g.concepts.push(con); }
+      con.idxs.push(idx);
     });
     
     let html = '';
@@ -1072,13 +1084,14 @@
         <label class="mock-mid">
           <input type="checkbox" class="c-mid-cb" data-mid="${gi}" onchange="onConceptMidToggle(this)">
           <span class="m-name">${g.소단원}</span>
-          <span class="m-count">${g.items.length}개</span>
+          <span class="m-count">${g.concepts.length}개</span>
         </label>
         <div class="mock-subs">`;
-      g.items.forEach(it => {
+      g.concepts.forEach(con => {
+        const countTag = con.idxs.length > 1 ? ` <span class="s-count">지문 ${con.idxs.length}개</span>` : '';
         html += `<label class="mock-sub">
-          <input type="checkbox" class="c-sub-cb" data-mid="${gi}" value="${it.idx}" onchange="onConceptSubToggle(this)">
-          <span class="s-name">${it.제목}</span>
+          <input type="checkbox" class="c-sub-cb" data-mid="${gi}" value="${con.idxs.join(',')}" onchange="onConceptSubToggle(this)">
+          <span class="s-name">${con.제목}</span>${countTag}
         </label>`;
       });
       html += `</div></div>`;
@@ -1125,14 +1138,18 @@
     master.indeterminate = onAll > 0 && onAll < all.length;
   }
   function getCheckedConcepts() {
-    return Array.from(document.querySelectorAll('#conceptPassageList .c-sub-cb:checked')).map(cb => Number(cb.value));
+    const idxs = [];
+    document.querySelectorAll('#conceptPassageList .c-sub-cb:checked').forEach(cb => {
+      String(cb.value).split(',').forEach(v => { if (v !== '') idxs.push(Number(v)); });
+    });
+    return idxs;
   }
   function updateConceptInfo() {
     const checked = getCheckedConcepts();
     const info = document.getElementById('conceptInfo');
     const startBtn = document.getElementById('conceptStartBtn');
     if (checked.length === 0) {
-      info.textContent = '풀 지문을 하나 이상 선택해 주세요';
+      info.textContent = '풀 개념을 하나 이상 선택해 주세요';
       startBtn.disabled = true;
     } else {
       info.innerHTML = `선택한 지문 <strong>${checked.length}개</strong>`;
@@ -1140,11 +1157,15 @@
     }
   }
   
-  // 체크한 지문들로 시작 (순서대로 / 랜덤)
+  // 체크한 개념의 지문들로 시작 (순서대로 / 랜덤)
   function startConceptFill() {
-    let seq = getCheckedConcepts();   // allConcepts 인덱스 (문서 순서)
+    let seq = getCheckedConcepts();
     if (seq.length === 0) return;
-    if (conceptOrderMode === 'random') seq = shuffle(seq);
+    if (conceptOrderMode === 'random') {
+      seq = shuffle(seq);
+    } else {
+      seq.sort((a, b) => a - b);   // 시트 순서(인덱스 오름차순)
+    }
     conceptSeq = seq;
     conceptSeqPos = 0;
     openConceptFill(conceptSeq[0]);
@@ -1287,12 +1308,20 @@
     showScreen('oxListScreen');
   }
   
-  // O/X 소단원 버튼 목록 (시트 입력 순서)
+  let oxOrderMode = 'random';   // 'random' 기본, 'seq' 시트 순서
+  function setOXOrderMode(m) {
+    oxOrderMode = m;
+    document.getElementById('oxOrderRandom').classList.toggle('on', m === 'random');
+    document.getElementById('oxOrderSeq').classList.toggle('on', m === 'seq');
+  }
+  
+  // O/X 소단원 체크 목록 (시트 입력 순서)
   function renderOXList() {
     const listEl = document.getElementById('oxSubunitList');
     const items = (allOX || []).filter(q => q.문장 && (q.정답 !== '' && q.정답 != null));
     if (items.length === 0) {
       listEl.innerHTML = '<p style="color:var(--text-light)">아직 O/X 문제가 없어요</p>';
+      document.getElementById('oxStartBtn').disabled = true;
       return;
     }
     const subs = [];
@@ -1306,23 +1335,64 @@
     let html = '';
     subs.forEach(s => {
       const safe = s.소단원.replace(/"/g, '&quot;');
-      html += `<button class="passage-item" onclick="startOX('${safe}')">
-        <span class="p-title">${s.소단원}</span>
-        <span class="p-blanks">${s.count}문제</span>
-      </button>`;
+      html += `<label class="mock-sub" style="border:2px solid #e5e7eb; border-radius:12px; padding:11px 14px; margin-bottom:8px;">
+        <input type="checkbox" class="ox-sub-cb" value="${safe}" onchange="onOXSubToggle(this)">
+        <span class="s-name">${s.소단원}</span>
+        <span class="s-count">${s.count}문제</span>
+      </label>`;
     });
     listEl.innerHTML = html;
+    refreshOXMaster();
+    updateOXInfo();
   }
   
-  // 소단원 클릭 → 그 소단원 OX 문제를 랜덤 순서로 시작
-  function startOX(sub) {
-    oxSubName = sub;
-    const idxs = [];
+  function onOXSubToggle(cb) {
+    cb.closest('.mock-sub').classList.toggle('on', cb.checked);
+    refreshOXMaster();
+    updateOXInfo();
+  }
+  function onOXMasterToggle(cb) {
+    document.querySelectorAll('#oxSubunitList .ox-sub-cb').forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
+    });
+    updateOXInfo();
+  }
+  function refreshOXMaster() {
+    const all = Array.from(document.querySelectorAll('#oxSubunitList .ox-sub-cb'));
+    const on = all.filter(s => s.checked).length;
+    const master = document.getElementById('oxMaster');
+    master.checked = on === all.length && all.length > 0;
+    master.indeterminate = on > 0 && on < all.length;
+  }
+  function getCheckedOXSubs() {
+    return Array.from(document.querySelectorAll('#oxSubunitList .ox-sub-cb:checked')).map(cb => cb.value);
+  }
+  function updateOXInfo() {
+    const checked = getCheckedOXSubs();
+    const info = document.getElementById('oxInfo');
+    const startBtn = document.getElementById('oxStartBtn');
+    if (checked.length === 0) {
+      info.textContent = '범위를 하나 이상 선택해 주세요';
+      startBtn.disabled = true;
+      return;
+    }
+    const pool = allOX.filter(q => q.문장 && (q.정답 !== '' && q.정답 != null) && checked.includes(q.소단원 || '기타'));
+    info.innerHTML = `선택한 범위 <strong>${pool.length}문제</strong>`;
+    startBtn.disabled = pool.length === 0;
+  }
+  
+  // 체크한 소단원들로 O/X 시작
+  function startOX() {
+    const checked = getCheckedOXSubs();
+    if (checked.length === 0) return;
+    oxSubName = checked.length === 1 ? checked[0] : (checked.length + '개 범위');
+    let idxs = [];
     allOX.forEach((q, i) => {
-      if (q.문장 && (q.정답 !== '' && q.정답 != null) && (q.소단원 || '기타') === sub) idxs.push(i);
+      if (q.문장 && (q.정답 !== '' && q.정답 != null) && checked.includes(q.소단원 || '기타')) idxs.push(i);
     });
     if (idxs.length === 0) return;
-    oxSeq = shuffle(idxs);
+    oxSeq = (oxOrderMode === 'random') ? shuffle(idxs) : idxs;
     oxPos = 0;
     oxCorrect = 0;
     oxWrong = [];
