@@ -286,6 +286,45 @@
     .login-footer .contact { font-size: 11px; color: var(--text-light); margin: 2px 0 0; }
     .login-footer .contact a { color: var(--primary); text-decoration: none; }
     .login-footer .contact a:hover { text-decoration: underline; }
+    /* 모드 선택 */
+    .mode-btns { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+    .mode-card {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      padding: 20px; border-radius: 16px; border: none; cursor: pointer;
+      color: white; text-align: left;
+    }
+    .mode-quiz { background: linear-gradient(135deg, var(--primary), #8b5cf6); }
+    .mode-concept { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
+    .mode-card:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .mode-emoji { font-size: 28px; }
+    .mode-title { font-family: 'Jua', sans-serif; font-size: 20px; }
+    .mode-desc { font-size: 13px; opacity: 0.9; }
+    /* 개념 지문 목록 */
+    .passage-group-label { font-weight: bold; color: var(--text-light); font-size: 13px; margin: 16px 0 8px; }
+    .passage-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      width: 100%; text-align: left; background: white;
+      border: 2px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+      cursor: pointer; color: var(--text);
+    }
+    .passage-item:hover { border-color: var(--primary); }
+    .passage-item .p-title { font-weight: bold; }
+    .passage-item .p-blanks { font-size: 12px; color: var(--text-light); flex: none; }
+    /* 지문 빈칸 채우기 */
+    .passage {
+      line-height: 2.4; font-size: 16px; color: var(--text);
+      white-space: pre-wrap; margin: 8px 0 4px;
+    }
+    .passage-blank {
+      display: inline-block; width: auto; min-width: 3em;
+      margin: 0 2px; padding: 2px 8px;
+      border: none; border-bottom: 2px solid var(--primary);
+      border-radius: 6px 6px 0 0; background: #eef2ff;
+      font-size: 15px; text-align: center;
+    }
+    .passage-blank.blank-ok { background: #dcfce7; border-bottom-color: #15803d; color: #15803d; }
+    .passage-blank.blank-no { background: #fee2e2; border-bottom-color: #b91c1c; color: #b91c1c; }
+    .blank-answer { color: #15803d; font-size: 13px; font-weight: bold; margin: 0 4px; }
     .question-img {
       max-width: 100%;
       border-radius: 12px;
@@ -538,8 +577,52 @@
     </div>
   </div>
 
+  <!-- 모드 선택 -->
+  <div id="modeScreen" class="card hidden">
+    <div class="greeting">
+      <div class="greeting-text"><strong id="modeName"></strong>님, 반가워요!</div>
+      <button class="btn-secondary" onclick="logout()">로그아웃</button>
+    </div>
+    <p style="color: var(--text-light); margin-bottom: 4px;">무엇을 할까요?</p>
+    <div class="mode-btns">
+      <button class="mode-card mode-quiz" onclick="goToSubUnitScreen()">
+        <span class="mode-emoji">📝</span>
+        <span class="mode-title">문제 풀기</span>
+        <span class="mode-desc">빈칸·객관식 문제와 모의고사</span>
+      </button>
+      <button class="mode-card mode-concept" onclick="goToConceptMode()">
+        <span class="mode-emoji">📖</span>
+        <span class="mode-title">개념 확인하기</span>
+        <span class="mode-desc">교과서 지문 빈칸 채우기</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 개념 확인: 지문 목록 -->
+  <div id="conceptModeScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
+    <h2>📖 개념 확인하기</h2>
+    <p style="color: var(--text-light); margin-top:4px;">지문을 골라 빈칸을 채워보세요</p>
+    <div id="conceptPassageList"></div>
+  </div>
+
+  <!-- 개념 확인: 빈칸 채우기 -->
+  <div id="conceptFillScreen" class="card hidden">
+    <button class="btn-back" onclick="goToConceptMode()">← 지문 목록으로</button>
+    <div class="breadcrumb" id="conceptFillBreadcrumb"></div>
+    <h3 class="concept-title" id="conceptFillTitle"></h3>
+    <div id="conceptPassage" class="passage"></div>
+    <div id="conceptFillResult"></div>
+    <div class="actions">
+      <button id="conceptGradeBtn" class="btn-primary" onclick="gradeConceptFill()">채점하기</button>
+      <button id="conceptRetryBtn" class="btn-secondary hidden" onclick="retryConceptFill()">다시 풀기</button>
+      <button id="conceptNextBtn" class="btn-primary hidden" onclick="nextConcept()">다음 지문 →</button>
+    </div>
+  </div>
+
   <!-- 소단원 선택 -->
   <div id="subUnitScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
     <div class="greeting">
       <div class="greeting-text"><strong id="studentName"></strong>님, 반가워요!</div>
       <button class="btn-secondary" onclick="logout()">로그아웃</button>
@@ -664,6 +747,7 @@
   
   let currentStudent = null;
   let allQuestions = [];
+  let allConcepts = [];
   let currentSubUnit = null;
   let currentConcept = null;
   let quizQuestions = [];
@@ -682,12 +766,32 @@
     return await response.json();
   }
   
+  let currentScreen = 'loginScreen';
+  let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
+  
   function showScreen(id) {
-    ['loginScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'conceptModeScreen', 'conceptFillScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // 브라우저 히스토리에 기록 (휴대폰 뒤로가기 대응)
+    if (!navByPop && id !== currentScreen) {
+      history.pushState({ screen: id }, '');
+    }
+    currentScreen = id;
   }
+  
+  // 휴대폰/브라우저 뒤로가기 → 이전 화면으로
+  window.addEventListener('popstate', function (e) {
+    const target = (e.state && e.state.screen) ? e.state.screen : 'loginScreen';
+    navByPop = true;
+    showScreen(target);
+    navByPop = false;
+  });
+  
+  // 첫 로드 시 기준점 심기 (로그인 화면)
+  history.replaceState({ screen: 'loginScreen' }, '');
   
   // ===== 로그인 (최적화: 1번 호출 + 캐싱 + 로딩 표시) =====
   async function login() {
@@ -715,15 +819,17 @@
       if (result.status === 'ok') {
         currentStudent = { 학번: result.학번, 이름: result.이름 };
         allQuestions = (result.questions || []).filter(q => q.문제ID);
+        allConcepts = (result.concepts || []);
         
         // 캐시 저장 (다음 로그인 시 즉시 표시용)
         try {
           localStorage.setItem('sj_questions_cache', JSON.stringify(allQuestions));
+          localStorage.setItem('sj_concepts_cache', JSON.stringify(allConcepts));
         } catch (e) {}
         
         document.getElementById('studentName').textContent = result.이름;
-        renderSubUnitGrid();
-        showScreen('subUnitScreen');
+        document.getElementById('modeName').textContent = result.이름;
+        showScreen('modeScreen');
         msg.innerHTML = '';
       } else {
         msg.textContent = '❌ ' + result.message;
@@ -735,9 +841,10 @@
       if (cachedQuestions && cachedQuestions.length > 0) {
         currentStudent = { 학번: id, 이름: id + ' (오프라인)' };
         allQuestions = cachedQuestions;
+        try { allConcepts = JSON.parse(localStorage.getItem('sj_concepts_cache') || '[]'); } catch(e) { allConcepts = []; }
         document.getElementById('studentName').textContent = currentStudent.이름;
-        renderSubUnitGrid();
-        showScreen('subUnitScreen');
+        document.getElementById('modeName').textContent = currentStudent.이름;
+        showScreen('modeScreen');
         msg.innerHTML = '';
       } else {
         msg.textContent = '⚠️ 서버 연결 실패';
@@ -816,6 +923,166 @@
       handleSearch();
     }
     showScreen('subUnitScreen');
+  }
+  
+  // ===== 개념 확인하기 =====
+  let currentPassage = null;   // 현재 풀고 있는 지문
+  let conceptOrder = [];       // 목록에 보이는 순서(allConcepts 인덱스)
+  
+  function goToConceptMode() {
+    renderConceptList();
+    showScreen('conceptModeScreen');
+  }
+  
+  // 지문 목록 (소단원별로 묶기, 입력 순서 유지)
+  function renderConceptList() {
+    const listEl = document.getElementById('conceptPassageList');
+    const passages = (allConcepts || []).filter(c => c.지문 && c.제목);
+    
+    if (passages.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 개념 지문이 없어요</p>';
+      return;
+    }
+    
+    // 소단원별 그룹 (입력 순서 유지)
+    const groups = [];
+    const gmap = new Map();
+    passages.forEach((c, idx) => {
+      const key = c.소단원 || '기타';
+      let g = gmap.get(key);
+      if (!g) { g = { 소단원: key, items: [] }; gmap.set(key, g); groups.push(g); }
+      g.items.push({ c, idx });
+    });
+    
+    let html = '';
+    conceptOrder = [];
+    groups.forEach(g => {
+      html += `<div class="passage-group-label">${g.소단원}</div>`;
+      g.items.forEach(({ c, idx }) => {
+        conceptOrder.push(idx);
+        const blanks = (String(c.지문).match(/\[\[.+?\]\]/g) || []).length;
+        html += `<button class="passage-item" onclick="openConceptFill(${idx})">
+          <span class="p-title">${c.제목}</span>
+          <span class="p-blanks">빈칸 ${blanks}개</span>
+        </button>`;
+      });
+    });
+    listEl.innerHTML = html;
+  }
+  
+  // 지문 하나 열기 → 빈칸 채우기 화면
+  function openConceptFill(idx) {
+    const c = allConcepts[idx];
+    if (!c) return;
+    currentPassage = c;
+    
+    document.getElementById('conceptFillBreadcrumb').innerHTML = `
+      <span>${c.대단원 || ''}</span>
+      ${c.소단원 ? '<span class="breadcrumb-sep">›</span><span>' + c.소단원 + '</span>' : ''}
+    `;
+    document.getElementById('conceptFillTitle').textContent = '📖 ' + c.제목;
+    renderPassage(c.지문);
+    document.getElementById('conceptFillResult').innerHTML = '';
+    document.getElementById('conceptGradeBtn').classList.remove('hidden');
+    document.getElementById('conceptRetryBtn').classList.add('hidden');
+    document.getElementById('conceptNextBtn').classList.add('hidden');
+    showScreen('conceptFillScreen');
+  }
+  
+  // 지문을 텍스트 + 빈칸 입력칸으로 렌더 ([[정답]] → input)
+  function renderPassage(text) {
+    const box = document.getElementById('conceptPassage');
+    box.innerHTML = '';
+    const parts = String(text).split(/(\[\[.+?\]\])/g);   // 빈칸 기준으로 쪼개기
+    let blankIdx = 0;
+    parts.forEach(part => {
+      const m = part.match(/^\[\[(.+?)\]\]$/);
+      if (m) {
+        const answer = m[1];                     // 예: "기온" 또는 "기온/온도"
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'passage-blank';
+        input.dataset.answer = answer;
+        input.dataset.bidx = blankIdx++;
+        // 정답 길이에 맞춰 폭 대략 지정
+        const longest = answer.split('/').reduce((a, b) => Math.max(a, b.trim().length), 1);
+        input.style.width = (longest + 1) + 'em';
+        box.appendChild(input);
+      } else if (part) {
+        box.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+  
+  // 채점
+  function gradeConceptFill() {
+    const inputs = document.querySelectorAll('#conceptPassage .passage-blank');
+    if (inputs.length === 0) return;
+    let correct = 0;
+    const logParts = [];
+    inputs.forEach(inp => {
+      const candidates = String(inp.dataset.answer).split('/').map(s => s.trim());
+      const val = inp.value.trim();
+      const ok = checkBlank(val, candidates);
+      inp.classList.remove('blank-ok', 'blank-no');
+      inp.classList.add(ok ? 'blank-ok' : 'blank-no');
+      inp.disabled = true;
+      logParts.push((val || '(빈칸)') + (ok ? '(O)' : '(X)'));
+      if (ok) {
+        correct++;
+      } else {
+        // 틀린 칸은 정답을 옆에 표시
+        if (!inp.nextElementSibling || !inp.nextElementSibling.classList || !inp.nextElementSibling.classList.contains('blank-answer')) {
+          const tag = document.createElement('span');
+          tag.className = 'blank-answer';
+          tag.textContent = '(' + candidates.join('/') + ')';
+          inp.after(tag);
+        }
+      }
+    });
+    const total = inputs.length;
+    const pct = Math.round((correct / total) * 100);
+    let comment = pct === 100 ? '🌟 완벽해요!' : pct >= 60 ? '👍 좋아요!' : '📚 다시 볼까요?';
+    document.getElementById('conceptFillResult').innerHTML =
+      `<div class="result-msg ${pct === 100 ? 'result-correct' : 'result-partial'}">
+        ${total}개 중 <strong>${correct}개</strong> 정답 (${pct}%) · ${comment}
+      </div>`;
+    document.getElementById('conceptGradeBtn').classList.add('hidden');
+    document.getElementById('conceptRetryBtn').classList.remove('hidden');
+    // 다음 지문이 있으면 '다음 지문' 버튼 노출
+    const pos = conceptOrder.indexOf(allConcepts.indexOf(currentPassage));
+    const hasNext = pos >= 0 && pos < conceptOrder.length - 1;
+    document.getElementById('conceptNextBtn').classList.toggle('hidden', !hasNext);
+    
+    // 기록 저장 (지문 한 번 = 한 줄)
+    saveConceptResult(currentPassage, logParts.join(' | '), correct + '/' + total);
+  }
+  
+  // 목록 순서상 다음 지문으로
+  function nextConcept() {
+    const pos = conceptOrder.indexOf(allConcepts.indexOf(currentPassage));
+    if (pos >= 0 && pos < conceptOrder.length - 1) {
+      openConceptFill(conceptOrder[pos + 1]);
+    } else {
+      goToConceptMode();   // 마지막이면 목록으로
+    }
+  }
+  
+  function saveConceptResult(c, answerLog, score) {
+    if (!c || !currentStudent) return;
+    apiCall({
+      action: 'saveConcept',
+      학번: currentStudent.학번,
+      이름: currentStudent.이름,
+      개념ID: c.개념ID || '',
+      제목: c.제목 || '',
+      학생답안: answerLog,
+      점수: score
+    }).catch(err => console.error('개념 기록 저장 실패:', err));
+  }
+  
+  function retryConceptFill() {
+    if (currentPassage) openConceptFill(allConcepts.indexOf(currentPassage));
   }
   
   // ===== 🔍 검색 기능 =====
