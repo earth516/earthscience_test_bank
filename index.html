@@ -1,128 +1,2091 @@
-# Apps Script 수정 안내 (개념 확인하기 + 기록 기능용)
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SJ 문제은행</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --accent: #10b981;
+      --bg-start: #f0f4ff;
+      --bg-end: #e0e7ff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --correct: #10b981;
+      --wrong: #ef4444;
+      --partial: #f59e0b;
+    }
+    body {
+      font-family: 'Gowun Dodum', 'Malgun Gothic', sans-serif;
+      background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+      min-height: 100vh;
+      color: var(--text);
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; padding: 30px 20px 20px; }
+    .logo-wrap {
+      display: inline-block;
+      width: 120px; height: 120px;
+      margin-bottom: 12px;
+      animation: bounce 3s ease-in-out infinite;
+    }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .title {
+      font-family: 'Jua', sans-serif;
+      font-size: 36px;
+      color: var(--text);
+      letter-spacing: -1px;
+    }
+    .subtitle {
+      color: var(--text-light);
+      font-size: 14px;
+      margin-top: 4px;
+      letter-spacing: 2px;
+    }
+    .card {
+      background: var(--card-bg);
+      padding: 32px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 22px; margin-bottom: 8px; font-family: 'Jua', sans-serif; }
+    h3 { font-size: 18px; margin-bottom: 12px; }
+    input {
+      width: 100%;
+      font-size: 17px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      font-family: inherit;
+      transition: border-color 0.2s;
+      margin-top: 8px;
+    }
+    input:focus { outline: none; border-color: var(--primary); }
+    button {
+      font-family: inherit;
+      font-size: 16px;
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: var(--text-light);
+      padding: 10px 18px;
+      font-size: 14px;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-back {
+      background: transparent;
+      color: var(--text-light);
+      padding: 8px 14px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .btn-back:hover { color: var(--primary); }
+    /* 모의고사 만들기 */
+    .btn-mock {
+      width: 100%;
+      margin-top: 12px;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+    }
+    .btn-mock:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .mock-section-title {
+      font-family: 'Jua', sans-serif;
+      font-size: 18px;
+      color: var(--text);
+      margin: 22px 0 10px;
+    }
+    .mock-hint { font-family: 'Gowun Dodum', sans-serif; font-size: 13px; color: var(--text-light); font-weight: normal; }
+    .mock-master {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: bold; color: var(--text); cursor: pointer; margin-bottom: 10px;
+    }
+    .mock-master input { width: 20px; height: 20px; accent-color: var(--primary); margin: 0; }
+    .mock-tree { }
+    .mock-mid-block {
+      border: 2px solid #e5e7eb; border-radius: 12px;
+      padding: 6px 10px; margin-bottom: 10px;
+    }
+    .mock-mid {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 4px; cursor: pointer; font-weight: bold; color: var(--text);
+    }
+    .mock-mid.on { color: var(--primary); }
+    .mock-mid input { width: 20px; height: 20px; accent-color: var(--primary); flex: none; margin: 0; }
+    .mock-mid .m-name { flex: 1; }
+    .mock-mid .m-count { color: var(--text-light); font-size: 13px; font-weight: normal; }
+    .mock-subs { padding-left: 18px; border-top: 1px dashed #e5e7eb; margin-top: 2px; padding-top: 4px; }
+    .mock-sub {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 4px; cursor: pointer; color: var(--text-light);
+    }
+    .mock-sub.on { color: var(--text); }
+    .mock-sub input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; margin: 0; }
+    .mock-sub .s-name { flex: 1; }
+    .mock-sub .s-count { font-size: 12px; opacity: 0.7; }
+    .mock-count-row { display: flex; gap: 10px; }
+    .mock-count {
+      flex: 1; background: #f1f5f9; color: var(--text-light);
+      border: 2px solid transparent; border-radius: 12px; padding: 12px;
+    }
+    .mock-count.on { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+    .mock-info {
+      margin: 18px 0 12px; padding: 12px 14px; border-radius: 12px;
+      background: #f8fafc; color: var(--text-light); font-size: 14px; text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .block {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 16px;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .block:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    .block-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: var(--text);
+      font-family: 'Jua', sans-serif;
+    }
+    .block-count {
+      font-size: 13px;
+      color: var(--text-light);
+      background: #f1f5f9;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+    /* 경로 (breadcrumb) */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border-radius: 12px;
+      font-size: 14px;
+      color: var(--primary-dark);
+      margin-bottom: 16px;
+      font-weight: bold;
+    }
+    .breadcrumb-sep { color: var(--text-light); opacity: 0.5; }
+    .breadcrumb-icon { font-size: 16px; }
+    /* 인사 */
+    .greeting {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .greeting-text { font-size: 18px; }
+    .greeting-text strong { color: var(--primary); }
+    /* 진행 */
+    .progress-bar {
+      background: #f1f5f9;
+      height: 8px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      height: 100%;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+    .concept-title {
+      font-family: 'Jua', sans-serif;
+      font-size: 22px;
+      color: var(--primary);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px dashed var(--border);
+    }
+    /* 난이도 배지 */
+    .diff-badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .diff-low  { background: #dcfce7; color: #15803d; }   /* 저급 */
+    .diff-mid  { background: #fef9c3; color: #a16207; }   /* 중급 */
+    .diff-high { background: #fee2e2; color: #b91c1c; }   /* 고급 */
+    .diff-etc  { background: #e2e8f0; color: #475569; }   /* 기타 값 */
+    /* 로그인 하단 안내 */
+    .login-footer {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      text-align: center;
+      line-height: 1.6;
+    }
+    .login-footer .report-note {
+      font-size: 13px;
+      color: var(--text);
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+    }
+    .login-footer .copyright { font-size: 11px; color: var(--text-light); margin: 0; }
+    .login-footer .contact { font-size: 11px; color: var(--text-light); margin: 2px 0 0; }
+    .login-footer .contact a { color: var(--primary); text-decoration: none; }
+    .login-footer .contact a:hover { text-decoration: underline; }
+    /* 모드 선택 */
+    .mode-btns { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+    .mode-card {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      padding: 20px; border-radius: 16px; border: none; cursor: pointer;
+      color: white; text-align: left;
+    }
+    .mode-quiz { background: linear-gradient(135deg, var(--primary), #8b5cf6); }
+    .mode-concept { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
+    .mode-card:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .mode-emoji { font-size: 28px; }
+    .mode-title { font-family: 'Jua', sans-serif; font-size: 20px; }
+    .mode-desc { font-size: 13px; opacity: 0.9; }
+    /* 개념 지문 목록 */
+    .passage-group-label { font-weight: bold; color: var(--text-light); font-size: 13px; margin: 16px 0 8px; }
+    .passage-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      width: 100%; text-align: left; background: white;
+      border: 2px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+      cursor: pointer; color: var(--text);
+    }
+    .passage-item:hover { border-color: var(--primary); }
+    .passage-item .p-title { font-weight: bold; }
+    .passage-item .p-blanks { font-size: 12px; color: var(--text-light); flex: none; }
+    /* 지문 빈칸 채우기 */
+    .passage {
+      line-height: 2.4; font-size: 16px; color: var(--text);
+      white-space: pre-wrap; margin: 8px 0 4px;
+    }
+    .passage-blank {
+      display: inline-block; width: auto; min-width: 3em;
+      margin: 0 2px; padding: 2px 8px;
+      border: none; border-bottom: 2px solid var(--primary);
+      border-radius: 6px 6px 0 0; background: #eef2ff;
+      font-size: 15px; text-align: center;
+    }
+    .passage-blank.blank-ok { background: #dcfce7; border-bottom-color: #15803d; color: #15803d; }
+    .passage-blank.blank-no { background: #fee2e2; border-bottom-color: #b91c1c; color: #b91c1c; }
+    .blank-answer { color: #15803d; font-size: 13px; font-weight: bold; margin: 0 4px; }
+    .passage-filled { font-weight: bold; color: var(--primary); }
+    /* O/X 퀴즈 */
+    .ox-statement {
+      font-size: 18px; line-height: 1.7; color: var(--text);
+      background: #f8fafc; border-radius: 12px; padding: 22px 18px;
+      margin: 14px 0 18px; min-height: 60px; white-space: pre-line;
+    }
+    .ox-btns { display: flex; gap: 14px; }
+    .ox-btn {
+      flex: 1; font-family: 'Jua', sans-serif; font-size: 40px;
+      padding: 20px 0; border-radius: 16px; border: 3px solid #e5e7eb; background: white;
+    }
+    .ox-o { color: #2563eb; }
+    .ox-x { color: #dc2626; }
+    .ox-btn:hover { border-color: var(--primary); }
+    .ox-btn:disabled { opacity: 0.5; }
+    .ox-picked-ok { border-color: #15803d !important; background: #dcfce7 !important; opacity: 1 !important; }
+    .ox-picked-no { border-color: #b91c1c !important; background: #fee2e2 !important; opacity: 1 !important; }
+    .question-img {
+      max-width: 100%;
+      border-radius: 12px;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+    }
+    /* 빈칸 입력 영역 */
+    .blank-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .blank-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .blank-label {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-family: 'Jua', sans-serif;
+    }
+    .blank-row input { margin-top: 0; }
+    /* 객관식(합답형) 보기 */
+    .choice-wrap {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+    }
+    .choice-btn {
+      flex: 0 1 auto;
+      min-width: 56px;
+      background: white;
+      color: var(--text);
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: 'Jua', sans-serif;
+      font-size: 15px;
+      letter-spacing: 1px;
+    }
+    .choice-btn:hover { border-color: var(--primary); }
+    .choice-btn.on {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    .choice-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+    .choice-hint { color: var(--text-light); font-size: 13px; margin-top: 10px; text-align: center; }
+    /* 결과 */
+    .result-msg {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 16px;
+    }
+    .result-correct {
+      background: #d1fae5;
+      color: #065f46;
+      border-left: 4px solid var(--correct);
+    }
+    .result-wrong {
+      background: #fee2e2;
+      color: #991b1b;
+      border-left: 4px solid var(--wrong);
+    }
+    .result-partial {
+      background: #fef3c7;
+      color: #92400e;
+      border-left: 4px solid var(--partial);
+    }
+    .result-icon { font-size: 22px; font-weight: bold; margin-right: 8px; }
+    .explanation { margin-top: 8px; font-size: 14px; opacity: 0.85; white-space: pre-line; }
+    .answer-detail {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .answer-detail-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .answer-mark { font-weight: bold; min-width: 20px; }
+    .answer-mark.ok { color: var(--correct); }
+    .answer-mark.no { color: var(--wrong); }
+    /* 결과 화면 */
+    .summary { text-align: center; padding: 20px; }
+    .summary-score {
+      font-family: 'Jua', sans-serif;
+      font-size: 56px;
+      color: var(--primary);
+      margin: 16px 0;
+    }
+    .summary-complete {
+      font-family: 'Jua', sans-serif;
+      font-size: 30px;
+      line-height: 1.4;
+      color: var(--primary);
+      margin: 16px 0;
+    }
+    .summary-complete .pct { font-size: 40px; }
+    .summary-label { color: var(--text-light); font-size: 16px; }
+    .hidden { display: none !important; }
+    .msg {
+      color: var(--text-light);
+      font-size: 14px;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+    .msg.error { color: var(--wrong); }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-light);
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .actions button { flex: 1; min-width: 96px; font-size: 15px; padding: 12px 10px; line-height: 1.2; margin-top: 0; }
+    /* 로딩 스피너 */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-overlay {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-light);
+      font-size: 15px;
+    }
+    .loading-overlay .spinner {
+      width: 28px;
+      height: 28px;
+      display: block;
+      margin: 0 auto 12px;
+    }
+    /* 검색창 */
+    .search-box {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-box input {
+      padding-left: 44px;
+      margin-top: 0;
+      background: #f8fafc;
+    }
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .search-clear {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #e2e8f0;
+      color: var(--text-light);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      border: none;
+      padding: 0;
+      font-weight: bold;
+    }
+    .search-clear:hover { background: #cbd5e1; }
+    .search-result-label {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+    .section-divider {
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text-light);
+      font-size: 14px;
+      font-weight: bold;
+    }
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .card { padding: 20px; }
+      .title { font-size: 28px; }
+      .logo-wrap { width: 90px; height: 90px; }
+      .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .block { padding: 16px 12px; }
+      .breadcrumb { font-size: 12px; padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
 
-개념 확인하기는 새 시트 **Concepts**를 읽고, 학생 기록을 **ConceptResponses**에 남깁니다.
-그래서 Apps Script를 아래처럼 고치고 **새 버전으로 재배포**해야 합니다. (4곳)
+<div class="container">
+  <div class="header">
+    <div class="logo-wrap">
+      <img src="image/logo.png" alt="SJ 문제은행" onerror="this.style.display='none'">
+    </div>
+    <div class="title">SJ 문제은행</div>
+    <div class="subtitle">EARTH SCIENCE</div>
+  </div>
 
----
+  <!-- 로그인 -->
+  <div id="loginScreen" class="card">
+    <h2>👋 어서오세요!</h2>
+    <p style="color: var(--text-light); margin-top: 4px;">학번을 입력하고 시작해요</p>
+    <input type="text" id="studentIdInput" placeholder="예: 20101" onkeypress="if(event.key==='Enter')login()">
+    <button class="btn-primary" onclick="login()">입장하기</button>
+    <p id="loginMsg" class="msg"></p>
 
-## 1. `loginAndGetData` 분기에 concepts 추가
+    <div class="login-footer">
+      <p class="report-note">🎁 문제 오류·오탈자 제보는 소소한 선물 증정 😮🥵</p>
+      <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
+      <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
+    </div>
+  </div>
 
-```javascript
-    } else if (action === 'loginAndGetData') {
-      const loginResult = checkLogin(e.parameter.studentId);
-      if (loginResult.status !== 'ok') {
-        return jsonResponse(loginResult);
+  <!-- 모드 선택 -->
+  <div id="modeScreen" class="card hidden">
+    <div class="greeting">
+      <div class="greeting-text"><strong id="modeName"></strong>님, 반가워요!</div>
+      <button class="btn-secondary" onclick="logout()">로그아웃</button>
+    </div>
+    <p style="color: var(--text-light); margin-bottom: 4px;">무엇을 할까요?</p>
+    <div class="mode-btns">
+      <button class="mode-card mode-quiz" onclick="goToSubUnitScreen()">
+        <span class="mode-emoji">📝</span>
+        <span class="mode-title">문제 풀기</span>
+        <span class="mode-desc">빈칸·객관식 문제와 모의고사</span>
+      </button>
+      <button class="mode-card mode-concept" onclick="goToConceptMode()">
+        <span class="mode-emoji">📖</span>
+        <span class="mode-title">개념 확인하기</span>
+        <span class="mode-desc">교과서 지문 빈칸 채우기</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 개념 확인: 유형 선택 -->
+  <div id="conceptTypeScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
+    <h2>📖 개념 확인하기</h2>
+    <p style="color: var(--text-light); margin-bottom: 4px;">어떤 방식으로 할까요?</p>
+    <div class="mode-btns">
+      <button class="mode-card mode-quiz" onclick="goToConceptFillList()">
+        <span class="mode-emoji">📝</span>
+        <span class="mode-title">지문 빈칸 채우기</span>
+        <span class="mode-desc">교과서 지문의 빈칸 채우기</span>
+      </button>
+      <button class="mode-card mode-concept" onclick="goToOXList()">
+        <span class="mode-emoji">⭕</span>
+        <span class="mode-title">O / X 퀴즈</span>
+        <span class="mode-desc">문장이 맞는지 O·X로 판단</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 개념 확인: 지문 빈칸 소단원 목록 -->
+  <div id="conceptModeScreen" class="card hidden">
+    <button class="btn-back" onclick="goToConceptMode()">← 뒤로</button>
+    <h2>📝 지문 빈칸 채우기</h2>
+    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 지문 빈칸을 채워보세요</p>
+    <div id="conceptPassageList"></div>
+  </div>
+
+  <!-- 개념 확인: 빈칸 채우기 -->
+  <div id="conceptFillScreen" class="card hidden">
+    <button class="btn-back" onclick="goToConceptFillList()">← 지문 목록으로</button>
+    <div class="breadcrumb" id="conceptFillBreadcrumb"></div>
+    <h3 class="concept-title" id="conceptFillTitle"></h3>
+    <div id="conceptPassage" class="passage"></div>
+    <div id="conceptFillResult"></div>
+    <div class="actions">
+      <button id="conceptGradeBtn" class="btn-primary" onclick="gradeConceptFill()">채점하기</button>
+      <button id="conceptRetryBtn" class="btn-secondary hidden" onclick="retryConceptFill()">다시 풀기</button>
+      <button id="conceptNextBtn" class="btn-primary hidden" onclick="nextConcept()">다음 지문 →</button>
+    </div>
+  </div>
+
+  <!-- O/X 퀴즈: 소단원 목록 -->
+  <div id="oxListScreen" class="card hidden">
+    <button class="btn-back" onclick="goToConceptMode()">← 뒤로</button>
+    <h2>⭕ O / X 퀴즈</h2>
+    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 O·X 문제를 풀어보세요</p>
+    <div id="oxSubunitList"></div>
+  </div>
+
+  <!-- O/X 퀴즈: 문제 풀이 -->
+  <div id="oxQuizScreen" class="card hidden">
+    <button class="btn-back" onclick="goToOXList()">← O/X 목록으로</button>
+    <div class="breadcrumb" id="oxBreadcrumb"></div>
+    <div class="progress-text"><span id="oxProgress"></span><span id="oxScore"></span></div>
+    <div class="progress-bar"><div id="oxProgressFill" class="progress-fill" style="width:0%"></div></div>
+    <div id="oxStatement" class="ox-statement"></div>
+    <div class="ox-btns">
+      <button class="ox-btn ox-o" onclick="answerOX('O')">O</button>
+      <button class="ox-btn ox-x" onclick="answerOX('X')">X</button>
+    </div>
+    <div id="oxResult"></div>
+    <div class="actions">
+      <button id="oxNextBtn" class="btn-primary hidden" onclick="nextOX()">다음 →</button>
+    </div>
+  </div>
+
+  <!-- O/X 퀴즈: 결과 -->
+  <div id="oxResultScreen" class="card hidden">
+    <div class="summary">
+      <h2 id="oxResultHead">🎉 수고하셨어요!</h2>
+      <div class="summary-complete" id="oxResultMsg"></div>
+      <div class="summary-label" id="oxResultSub"></div>
+      <div class="actions" style="max-width:400px; margin: 24px auto 0;">
+        <button id="oxRetryWrongBtn" class="btn-primary hidden" onclick="retryOXWrong()">틀린 문제 다시 풀기</button>
+        <button class="btn-secondary" onclick="goToOXList()">소단원 목록으로</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 소단원 선택 -->
+  <div id="subUnitScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
+    <div class="greeting">
+      <div class="greeting-text"><strong id="studentName"></strong>님, 반가워요!</div>
+      <button class="btn-secondary" onclick="logout()">로그아웃</button>
+    </div>
+    
+    <!-- 검색창 -->
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="개념 검색 (예: 오존, 염분)" oninput="handleSearch()">
+      <button id="searchClearBtn" class="search-clear hidden" onclick="clearSearch()">✕</button>
+    </div>
+    
+    <button class="btn-mock" onclick="openMockSetup()">📝 모의고사 만들기</button>
+    
+    <!-- 검색 결과 영역 -->
+    <div id="searchResultArea" class="hidden">
+      <div class="search-result-label" id="searchResultLabel"></div>
+      <div id="searchResultGrid" class="grid"></div>
+    </div>
+    
+    <!-- 소단원 영역 -->
+    <div id="subUnitArea">
+      <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
+      <div id="subUnitLoading" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        📚 문제를 불러오는 중...
+      </div>
+      <div id="subUnitGrid" class="grid"></div>
+    </div>
+  </div>
+
+  <!-- 관련개념 선택 -->
+  <div id="conceptScreen" class="card hidden">
+    <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
+    <div class="breadcrumb" id="conceptBreadcrumb"></div>
+    <p style="color: var(--text-light);">학습할 개념을 선택하세요 (가나다순)</p>
+    <div id="conceptGrid" class="grid"></div>
+  </div>
+
+  <!-- 모의고사 만들기 -->
+  <div id="mockScreen" class="card hidden">
+    <button class="btn-back" onclick="goToSubUnitScreen()">← 소단원 선택으로</button>
+    <h2>📝 모의고사 만들기</h2>
+    <p style="color: var(--text-light); margin-top:4px;">범위(소단원·관련개념)를 고르고 문제 수를 정해요</p>
+
+    <div class="mock-section-title">1. 범위 선택 <span class="mock-hint">(원하는 범위만 체크)</span></div>
+    <label class="mock-master">
+      <input type="checkbox" id="mockMaster" onchange="onMasterToggle(this)">
+      <span>전체 선택</span>
+    </label>
+    <div id="mockUnitList" class="mock-tree"></div>
+
+    <div class="mock-section-title">2. 문제 수</div>
+    <div class="mock-count-row" id="mockCountRow">
+      <button class="mock-count" data-n="10" onclick="setMockCount(10)">10문제</button>
+      <button class="mock-count" data-n="20" onclick="setMockCount(20)">20문제</button>
+      <button class="mock-count" data-n="30" onclick="setMockCount(30)">30문제</button>
+    </div>
+
+    <div class="mock-info" id="mockInfo"></div>
+    <button class="btn-primary" id="mockStartBtn" onclick="startMockExam()">모의고사 시작 🚀</button>
+  </div>
+
+  <!-- 문제 풀이 -->
+  <div id="quizScreen" class="card hidden">
+    <button class="btn-back" id="quizBackBtn" onclick="quitQuiz()">← 개념 선택으로</button>
+    <div class="breadcrumb" id="quizBreadcrumb"></div>
+    <div class="progress-text">
+      <span id="progressText"></span>
+      <span id="scoreText"></span>
+    </div>
+    <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+    <span id="difficultyBadge" class="diff-badge hidden"></span>
+    <h3 class="concept-title" id="conceptText"></h3>
+    <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
+    <div id="quizArea"></div>
+    <div id="resultMsg"></div>
+    <div class="actions" id="quizActions">
+      <button id="submitBtn" class="btn-primary" onclick="submitAnswer()">제출</button>
+      <button id="revealBtn" class="btn-secondary" onclick="revealAnswer()">정답 보기</button>
+      <button id="skipBtn" class="btn-secondary" onclick="skipQuestion()">넘어가기</button>
+      <button id="nextBtn" class="btn-primary hidden">다음 문제 →</button>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div id="resultScreen" class="card hidden">
+    <div class="summary">
+      <h2>🎉 수고하셨어요!</h2>
+      <div class="summary-complete" id="completeMsg"></div>
+      <div class="summary-label" id="scorePercent"></div>
+      <div class="actions" style="max-width:400px; margin: 24px auto 0;">
+        <button class="btn-primary" onclick="goToSubUnitScreen()">소단원 선택으로</button>
+        <button class="btn-secondary" onclick="retryQuiz()">다시 풀기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
+  const IMAGE_BASE = 'image/';
+  
+  // 대단원 아이콘 (문제ID 앞부분 기준)
+  // 새 방식: atm/ocn/geo/spc/aoi  (옛 방식 A/B/C/D 도 같이 지원)
+  const PART_ICON = {
+    'atm': '🌫️', 'ocn': '🌊', 'geo': '⛰️', 'spc': '🌌', 'aoi': '🔄',
+    'A': '🌫️', 'B': '🌊', 'C': '⛰️', 'D': '🌌'
+  };
+
+  // 문제ID에서 대단원 코드 뽑기
+  //  atm-001 → atm,  A-01-001 → A
+  function partCode(id) {
+    const s = String(id || '').trim();
+    if (!s) return '';
+    const first = s.split('-')[0].toLowerCase();   // 첫 구획 (예: atm, a)
+    if (PART_ICON[first]) return first;            // atm/ocn/geo/spc 매칭
+    return s.charAt(0).toUpperCase();              // 옛 방식 A/B/C/D
+  }
+  function partIcon(id) {
+    return PART_ICON[partCode(id)] || '📘';
+  }
+  
+  let currentStudent = null;
+  let allQuestions = [];
+  let allConcepts = [];
+  let allOX = [];
+  let currentSubUnit = null;
+  let currentConcept = null;
+  let quizQuestions = [];
+  let currentIndex = 0;
+  let correctCount = 0;
+  let wrongAttempts = 0;              // 현재 문제 오답 제출 횟수
+  const REVEAL_AFTER = 3;            // 오답 N번이면 자동으로 정답 공개
+  let isMock = false;               // 모의고사 모드 여부
+  let mockCount = 20;               // 선택된 문제 수 (10/20/30)
+  let mockUnits = [];               // 선택된 중단원 이름 목록 (다시 풀기용)
+  let currentIsChoice = false;      // 현재 문제가 객관식(합답형)인지
+  
+  async function apiCall(params) {
+    const url = API_URL + '?' + new URLSearchParams(params).toString();
+    const response = await fetch(url);
+    return await response.json();
+  }
+  
+  let currentScreen = 'loginScreen';
+  let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
+  
+  function showScreen(id) {
+    ['loginScreen', 'modeScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+      .forEach(s => document.getElementById(s).classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // 브라우저 히스토리에 기록 (휴대폰 뒤로가기 대응)
+    if (!navByPop && id !== currentScreen) {
+      history.pushState({ screen: id }, '');
+    }
+    currentScreen = id;
+  }
+  
+  // 휴대폰/브라우저 뒤로가기 → 이전 화면으로
+  window.addEventListener('popstate', function (e) {
+    const target = (e.state && e.state.screen) ? e.state.screen : 'loginScreen';
+    // 문제 풀이 중이면 그만둘지 확인
+    if (currentScreen === 'quizScreen' && (currentIndex > 0 || correctCount > 0)) {
+      if (!confirm('정말 그만 푸시겠어요?')) {
+        // 취소 → 뒤로가기 무효화(현재 화면 유지)
+        history.pushState({ screen: 'quizScreen' }, '');
+        return;
       }
-      const questionsResult = getQuestions();
-      const conceptsResult = getConcepts();          // ← 추가
-      return jsonResponse({
-        status: 'ok',
-        학번: loginResult.학번,
-        이름: loginResult.이름,
-        questions: questionsResult.data,
-        concepts: conceptsResult.data                 // ← 추가
+    }
+    navByPop = true;
+    showScreen(target);
+    navByPop = false;
+  });
+  
+  // 첫 로드 시 기준점 심기 (로그인 화면)
+  history.replaceState({ screen: 'loginScreen' }, '');
+  
+  // ===== 로그인 (최적화: 1번 호출 + 캐싱 + 로딩 표시) =====
+  async function login() {
+    const id = document.getElementById('studentIdInput').value.trim();
+    const msg = document.getElementById('loginMsg');
+    if (!id) { msg.textContent = '학번을 입력해주세요'; msg.className = 'msg error'; return; }
+    
+    // 로그인 버튼 비활성화 + 스피너 표시
+    const loginBtn = document.querySelector('#loginScreen .btn-primary');
+    loginBtn.disabled = true;
+    msg.innerHTML = '<span class="spinner"></span>입장하는 중...';
+    msg.className = 'msg';
+    
+    // ① 캐시된 문제 데이터 먼저 확인 (즉시 표시)
+    const cached = localStorage.getItem('sj_questions_cache');
+    let cachedQuestions = null;
+    if (cached) {
+      try { cachedQuestions = JSON.parse(cached); } catch (e) {}
+    }
+    
+    try {
+      // ② API 한 번에 호출 (로그인 + 문제 동시)
+      const result = await apiCall({ action: 'loginAndGetData', studentId: id });
+      
+      if (result.status === 'ok') {
+        currentStudent = { 학번: result.학번, 이름: result.이름 };
+        allQuestions = (result.questions || []).filter(q => q.문제ID);
+        allConcepts = (result.concepts || []);
+        allOX = (result.ox || []);
+        
+        // 캐시 저장 (다음 로그인 시 즉시 표시용)
+        try {
+          localStorage.setItem('sj_questions_cache', JSON.stringify(allQuestions));
+          localStorage.setItem('sj_concepts_cache', JSON.stringify(allConcepts));
+          localStorage.setItem('sj_ox_cache', JSON.stringify(allOX));
+        } catch (e) {}
+        
+        document.getElementById('studentName').textContent = result.이름;
+        document.getElementById('modeName').textContent = result.이름;
+        showScreen('modeScreen');
+        msg.innerHTML = '';
+      } else {
+        msg.textContent = '❌ ' + result.message;
+        msg.className = 'msg error';
+        loginBtn.disabled = false;
+      }
+    } catch (err) {
+      // ③ 서버 실패해도 캐시가 있으면 그걸로 진행
+      if (cachedQuestions && cachedQuestions.length > 0) {
+        currentStudent = { 학번: id, 이름: id + ' (오프라인)' };
+        allQuestions = cachedQuestions;
+        try { allConcepts = JSON.parse(localStorage.getItem('sj_concepts_cache') || '[]'); } catch(e) { allConcepts = []; }
+        try { allOX = JSON.parse(localStorage.getItem('sj_ox_cache') || '[]'); } catch(e) { allOX = []; }
+        document.getElementById('studentName').textContent = currentStudent.이름;
+        document.getElementById('modeName').textContent = currentStudent.이름;
+        showScreen('modeScreen');
+        msg.innerHTML = '';
+      } else {
+        msg.textContent = '⚠️ 서버 연결 실패';
+        msg.className = 'msg error';
+        loginBtn.disabled = false;
+      }
+    }
+  }
+  
+  function logout() {
+    currentStudent = null;
+    allQuestions = [];
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('loginMsg').textContent = '';
+    const loginBtn = document.querySelector('#loginScreen .btn-primary');
+    if (loginBtn) loginBtn.disabled = false;
+    showScreen('loginScreen');
+  }
+  
+  async function loadQuestions() {
+    const result = await apiCall({ action: 'getQuestions' });
+    if (result.status === 'ok') {
+      allQuestions = result.data.filter(q => q.문제ID);
+    }
+  }
+  
+  // ===== 소단원 블록 (시트 순서대로) =====
+  function renderSubUnitGrid() {
+    const grid = document.getElementById('subUnitGrid');
+    grid.innerHTML = '';
+    
+    // 시트 순서대로 unique 소단원 추출
+    const seen = new Set();
+    const subUnits = [];
+    allQuestions.forEach(q => {
+      if (q.소단원 && !seen.has(q.소단원)) {
+        seen.add(q.소단원);
+        subUnits.push({
+          이름: q.소단원,
+          대단원: q.대단원,
+          중단원: q.중단원,
+          코드: partCode(q.문제ID)
+        });
+      }
+    });
+    
+    if (subUnits.length === 0) {
+      grid.innerHTML = '<div class="empty-state">아직 문제가 없어요</div>';
+      return;
+    }
+    
+    subUnits.forEach(su => {
+      const count = allQuestions.filter(q => q.소단원 === su.이름).length;
+      const icon = PART_ICON[su.코드] || '📘';
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div style="font-size:32px;">${icon}</div>
+        <div class="block-title">${su.이름}</div>
+        <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
+        <div class="block-count">${count}문제</div>
+      `;
+      block.onclick = () => selectSubUnit(su);
+      grid.appendChild(block);
+    });
+  }
+  
+  function goToSubUnitScreen() {
+    currentSubUnit = null;
+    currentConcept = null;
+    renderSubUnitGrid();
+    // 검색창도 초기화
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      handleSearch();
+    }
+    showScreen('subUnitScreen');
+  }
+  
+  // ===== 개념 확인하기 =====
+  let currentPassage = null;   // 현재 풀고 있는 지문
+  let conceptSeq = [];         // 현재 소단원의 지문들(allConcepts 인덱스, 시트 순서)
+  let conceptSeqPos = 0;       // conceptSeq 안에서의 현재 위치
+  
+  function goToConceptMode() {
+    showScreen('conceptTypeScreen');
+  }
+  
+  // 지문 빈칸 소단원 목록
+  function goToConceptFillList() {
+    renderConceptList();
+    showScreen('conceptModeScreen');
+  }
+  
+  // 소단원 버튼 목록 (시트 입력 순서 유지)
+  function renderConceptList() {
+    const listEl = document.getElementById('conceptPassageList');
+    const passages = (allConcepts || []).filter(c => c.지문 && c.제목);
+    
+    if (passages.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 개념 지문이 없어요</p>';
+      return;
+    }
+    
+    // 소단원별 지문 개수 (입력 순서 유지)
+    const subs = [];
+    const smap = new Map();
+    passages.forEach(c => {
+      const key = c.소단원 || '기타';
+      let s = smap.get(key);
+      if (!s) { s = { 소단원: key, count: 0 }; smap.set(key, s); subs.push(s); }
+      s.count++;
+    });
+    
+    let html = '';
+    subs.forEach(s => {
+      const safe = s.소단원.replace(/"/g, '&quot;');
+      html += `<button class="passage-item" onclick="startConceptSubunit('${safe}')">
+        <span class="p-title">${s.소단원}</span>
+        <span class="p-blanks">지문 ${s.count}개</span>
+      </button>`;
+    });
+    listEl.innerHTML = html;
+  }
+  
+  // 소단원 클릭 → 그 소단원 지문들을 시트 순서대로 시작
+  function startConceptSubunit(sub) {
+    conceptSeq = [];
+    allConcepts.forEach((c, idx) => {
+      if (c.지문 && c.제목 && (c.소단원 || '기타') === sub) conceptSeq.push(idx);
+    });
+    if (conceptSeq.length === 0) return;
+    conceptSeqPos = 0;
+    openConceptFill(conceptSeq[0]);
+  }
+  
+  // 지문 하나 열기 → 빈칸 채우기 화면
+  function openConceptFill(idx) {
+    const c = allConcepts[idx];
+    if (!c) return;
+    currentPassage = c;
+    conceptSeqPos = conceptSeq.indexOf(idx);   // 현재 위치 갱신
+    
+    document.getElementById('conceptFillBreadcrumb').innerHTML = `
+      <span>${c.대단원 || ''}</span>
+      ${c.소단원 ? '<span class="breadcrumb-sep">›</span><span>' + c.소단원 + '</span>' : ''}
+    `;
+    document.getElementById('conceptFillTitle').textContent = '📖 ' + c.제목;
+    renderPassage(c.지문);
+    document.getElementById('conceptFillResult').innerHTML = '';
+    document.getElementById('conceptGradeBtn').classList.remove('hidden');
+    document.getElementById('conceptRetryBtn').classList.add('hidden');
+    document.getElementById('conceptNextBtn').classList.add('hidden');
+    showScreen('conceptFillScreen');
+  }
+  
+  // 지문 렌더 — [[정답]] 중 "절반만 랜덤"으로 빈칸, 나머지는 정답 채워서 보여줌
+  function renderPassage(text) {
+    const box = document.getElementById('conceptPassage');
+    box.innerHTML = '';
+    const parts = String(text).split(/(\[\[.+?\]\])/g);
+    
+    // 먼저 빈칸이 몇 개인지 세고, 그중 절반을 랜덤으로 '입력칸'으로 지정
+    const blankPositions = [];
+    parts.forEach((part, i) => { if (/^\[\[.+?\]\]$/.test(part)) blankPositions.push(i); });
+    const activeCount = Math.max(1, Math.round(blankPositions.length / 2));
+    const shuffled = shuffle(blankPositions);
+    const activeSet = new Set(shuffled.slice(0, activeCount));   // 입력칸이 될 위치
+    
+    parts.forEach((part, i) => {
+      const m = part.match(/^\[\[(.+?)\]\]$/);
+      if (m) {
+        const answer = m[1];                       // 예: "기온" 또는 "기온/온도"
+        if (activeSet.has(i)) {
+          // 빈칸(입력칸)
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'passage-blank';
+          input.dataset.answer = answer;
+          const longest = answer.split('/').reduce((a, b) => Math.max(a, b.trim().length), 1);
+          input.style.width = (longest + 1) + 'em';
+          box.appendChild(input);
+        } else {
+          // 이미 채워진 부분 (정답 첫 후보를 보여줌)
+          const span = document.createElement('span');
+          span.className = 'passage-filled';
+          span.textContent = answer.split('/')[0].trim();
+          box.appendChild(span);
+        }
+      } else if (part) {
+        box.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+  
+  // 채점
+  function gradeConceptFill() {
+    const inputs = document.querySelectorAll('#conceptPassage .passage-blank');
+    if (inputs.length === 0) return;
+    let correct = 0;
+    const logParts = [];
+    inputs.forEach(inp => {
+      const candidates = String(inp.dataset.answer).split('/').map(s => s.trim());
+      const val = inp.value.trim();
+      const ok = checkBlank(val, candidates);
+      inp.classList.remove('blank-ok', 'blank-no');
+      inp.classList.add(ok ? 'blank-ok' : 'blank-no');
+      inp.disabled = true;
+      logParts.push((val || '(빈칸)') + (ok ? '(O)' : '(X)'));
+      if (ok) {
+        correct++;
+      } else {
+        // 틀린 칸은 정답을 옆에 표시
+        if (!inp.nextElementSibling || !inp.nextElementSibling.classList || !inp.nextElementSibling.classList.contains('blank-answer')) {
+          const tag = document.createElement('span');
+          tag.className = 'blank-answer';
+          tag.textContent = '(' + candidates.join('/') + ')';
+          inp.after(tag);
+        }
+      }
+    });
+    const total = inputs.length;
+    const pct = Math.round((correct / total) * 100);
+    let comment = pct === 100 ? '🌟 완벽해요!' : pct >= 60 ? '👍 좋아요!' : '📚 다시 볼까요?';
+    document.getElementById('conceptFillResult').innerHTML =
+      `<div class="result-msg ${pct === 100 ? 'result-correct' : 'result-partial'}">
+        ${total}개 중 <strong>${correct}개</strong> 정답 (${pct}%) · ${comment}
+      </div>`;
+    document.getElementById('conceptGradeBtn').classList.add('hidden');
+    document.getElementById('conceptRetryBtn').classList.remove('hidden');
+    // 같은 소단원에 다음 지문이 있으면 '다음 지문' 버튼 노출
+    const hasNext = conceptSeqPos >= 0 && conceptSeqPos < conceptSeq.length - 1;
+    document.getElementById('conceptNextBtn').classList.toggle('hidden', !hasNext);
+    
+    // 기록 저장 (지문 한 번 = 한 줄)
+    saveConceptResult(currentPassage, logParts.join(' | '), correct + '/' + total);
+  }
+  
+  // 같은 소단원의 다음 지문으로
+  function nextConcept() {
+    if (conceptSeqPos >= 0 && conceptSeqPos < conceptSeq.length - 1) {
+      openConceptFill(conceptSeq[conceptSeqPos + 1]);
+    } else {
+      goToConceptFillList();   // 마지막이면 소단원 목록으로
+    }
+  }
+  
+  function saveConceptResult(c, answerLog, score) {
+    if (!c || !currentStudent) return;
+    apiCall({
+      action: 'saveConcept',
+      학번: currentStudent.학번,
+      이름: currentStudent.이름,
+      개념ID: c.개념ID || '',
+      제목: c.제목 || '',
+      학생답안: answerLog,
+      점수: score
+    }).catch(err => console.error('개념 기록 저장 실패:', err));
+  }
+  
+  // ===== O/X 퀴즈 =====
+  let oxSubName = '';    // 현재 소단원
+  let oxSeq = [];        // 이번에 풀 OX 문제(allOX 인덱스)
+  let oxPos = 0;
+  let oxCorrect = 0;
+  let oxWrong = [];      // 틀린 문제(allOX 인덱스)
+  let oxAnswered = false;
+  
+  function goToOXList() {
+    renderOXList();
+    showScreen('oxListScreen');
+  }
+  
+  // O/X 소단원 버튼 목록 (시트 입력 순서)
+  function renderOXList() {
+    const listEl = document.getElementById('oxSubunitList');
+    const items = (allOX || []).filter(q => q.문장 && (q.정답 !== '' && q.정답 != null));
+    if (items.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 O/X 문제가 없어요</p>';
+      return;
+    }
+    const subs = [];
+    const smap = new Map();
+    items.forEach(q => {
+      const key = q.소단원 || '기타';
+      let s = smap.get(key);
+      if (!s) { s = { 소단원: key, count: 0 }; smap.set(key, s); subs.push(s); }
+      s.count++;
+    });
+    let html = '';
+    subs.forEach(s => {
+      const safe = s.소단원.replace(/"/g, '&quot;');
+      html += `<button class="passage-item" onclick="startOX('${safe}')">
+        <span class="p-title">${s.소단원}</span>
+        <span class="p-blanks">${s.count}문제</span>
+      </button>`;
+    });
+    listEl.innerHTML = html;
+  }
+  
+  // 소단원 클릭 → 그 소단원 OX 문제를 랜덤 순서로 시작
+  function startOX(sub) {
+    oxSubName = sub;
+    const idxs = [];
+    allOX.forEach((q, i) => {
+      if (q.문장 && (q.정답 !== '' && q.정답 != null) && (q.소단원 || '기타') === sub) idxs.push(i);
+    });
+    if (idxs.length === 0) return;
+    oxSeq = shuffle(idxs);
+    oxPos = 0;
+    oxCorrect = 0;
+    oxWrong = [];
+    showOXQuestion();
+  }
+  
+  function showOXQuestion() {
+    const q = allOX[oxSeq[oxPos]];
+    oxAnswered = false;
+    document.getElementById('oxBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">⭕</span><span>O/X 퀴즈</span>
+      <span class="breadcrumb-sep">›</span><span>${oxSubName}</span>`;
+    document.getElementById('oxProgress').textContent = `${oxPos + 1} / ${oxSeq.length}`;
+    document.getElementById('oxScore').textContent = `맞힌 개수: ${oxCorrect}`;
+    document.getElementById('oxProgressFill').style.width = ((oxPos) / oxSeq.length * 100) + '%';
+    document.getElementById('oxStatement').textContent = q.문장;
+    document.getElementById('oxResult').innerHTML = '';
+    document.getElementById('oxNextBtn').classList.add('hidden');
+    document.querySelectorAll('.ox-btn').forEach(b => {
+      b.disabled = false;
+      b.classList.remove('ox-picked-ok', 'ox-picked-no');
+    });
+    showScreen('oxQuizScreen');
+  }
+  
+  function answerOX(choice) {
+    if (oxAnswered) return;
+    oxAnswered = true;
+    const q = allOX[oxSeq[oxPos]];
+    const correctAns = String(q.정답).trim().toUpperCase().startsWith('O') ? 'O' : 'X';
+    const ok = (choice === correctAns);
+    
+    document.querySelectorAll('.ox-btn').forEach(b => b.disabled = true);
+    const picked = document.querySelector('.ox-' + choice.toLowerCase());
+    picked.classList.add(ok ? 'ox-picked-ok' : 'ox-picked-no');
+    
+    if (ok) oxCorrect++;
+    else oxWrong.push(oxSeq[oxPos]);
+    document.getElementById('oxScore').textContent = `맞힌 개수: ${oxCorrect}`;
+    
+    document.getElementById('oxResult').innerHTML = `<div class="result-msg ${ok ? 'result-correct' : 'result-wrong'}">
+      <span class="result-icon">${ok ? '✓' : '✗'}</span> ${ok ? '정답이에요!' : '아쉬워요! 정답은 ' + correctAns}
+      ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+    </div>`;
+    
+    const nextBtn = document.getElementById('oxNextBtn');
+    nextBtn.textContent = (oxPos < oxSeq.length - 1) ? '다음 →' : '결과 보기 🎉';
+    nextBtn.classList.remove('hidden');
+  }
+  
+  function nextOX() {
+    if (oxPos < oxSeq.length - 1) {
+      oxPos++;
+      showOXQuestion();
+    } else {
+      showOXResult();
+    }
+  }
+  
+  function showOXResult() {
+    const total = oxSeq.length;
+    const pct = total ? Math.round((oxCorrect / total) * 100) : 0;
+    document.getElementById('oxResultMsg').innerHTML = `${oxSubName}<br><span class="pct">${pct}%</span> 정답!`;
+    let comment = pct === 100 ? '🌟 완벽해요!' : pct >= 60 ? '👏 잘했어요!' : '📚 다시 볼까요?';
+    document.getElementById('oxResultSub').textContent = `${total}문제 중 ${oxCorrect}개 정답 · ${comment}`;
+    
+    const retryBtn = document.getElementById('oxRetryWrongBtn');
+    if (oxWrong.length > 0) {
+      retryBtn.textContent = `틀린 문제 다시 풀기 (${oxWrong.length}개)`;
+      retryBtn.classList.remove('hidden');
+    } else {
+      retryBtn.classList.add('hidden');
+    }
+    
+    // 기록 (세션 한 번 = 한 줄)
+    if (currentStudent) {
+      apiCall({
+        action: 'saveConcept',
+        학번: currentStudent.학번,
+        이름: currentStudent.이름,
+        개념ID: '',
+        제목: 'O/X 퀴즈: ' + oxSubName,
+        학생답안: `${total}문제 중 ${oxCorrect}개 정답`,
+        점수: oxCorrect + '/' + total
+      }).catch(err => console.error('OX 기록 저장 실패:', err));
+    }
+    
+    showScreen('oxResultScreen');
+  }
+  
+  // 틀린 문제만 다시 (랜덤)
+  function retryOXWrong() {
+    if (oxWrong.length === 0) return;
+    oxSeq = shuffle(oxWrong);
+    oxPos = 0;
+    oxCorrect = 0;
+    oxWrong = [];
+    showOXQuestion();
+  }
+  
+  function retryConceptFill() {
+    if (currentPassage) openConceptFill(allConcepts.indexOf(currentPassage));
+  }
+  
+  // ===== 🔍 검색 기능 =====
+  function handleSearch() {
+    const keyword = document.getElementById('searchInput').value.trim();
+    const clearBtn = document.getElementById('searchClearBtn');
+    const resultArea = document.getElementById('searchResultArea');
+    const subUnitArea = document.getElementById('subUnitArea');
+    
+    if (!keyword) {
+      // 검색어 없으면 → 소단원 보이기
+      clearBtn.classList.add('hidden');
+      resultArea.classList.add('hidden');
+      subUnitArea.classList.remove('hidden');
+      return;
+    }
+    
+    clearBtn.classList.remove('hidden');
+    
+    // 관련개념에 검색어 포함된 문제 찾기
+    const lowerKeyword = keyword.toLowerCase();
+    const matched = allQuestions.filter(q => 
+      q.관련개념 && String(q.관련개념).toLowerCase().includes(lowerKeyword)
+    );
+    
+    // 관련개념별로 그룹
+    const conceptMap = {};
+    matched.forEach(q => {
+      if (!conceptMap[q.관련개념]) {
+        conceptMap[q.관련개념] = {
+          개념: q.관련개념,
+          소단원: q.소단원,
+          중단원: q.중단원,
+          대단원: q.대단원,
+          코드: partCode(q.문제ID),
+          문제들: []
+        };
+      }
+      conceptMap[q.관련개념].문제들.push(q);
+    });
+    
+    const conceptGroups = Object.values(conceptMap);
+    // 가나다순
+    conceptGroups.sort((a, b) => String(a.개념).localeCompare(String(b.개념), 'ko'));
+    
+    // 결과 표시
+    subUnitArea.classList.add('hidden');
+    resultArea.classList.remove('hidden');
+    
+    const label = document.getElementById('searchResultLabel');
+    const grid = document.getElementById('searchResultGrid');
+    grid.innerHTML = '';
+    
+    if (conceptGroups.length === 0) {
+      label.textContent = `"${keyword}" 검색 결과가 없어요`;
+      grid.innerHTML = '<div class="empty-state">😢 해당 개념이 없어요. 다른 키워드로 검색해보세요.</div>';
+      return;
+    }
+    
+    label.textContent = `"${keyword}" 검색 결과: ${conceptGroups.length}개 개념, ${matched.length}문제`;
+    
+    conceptGroups.forEach(group => {
+      const icon = PART_ICON[group.코드] || '📘';
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div style="font-size:28px;">${icon}</div>
+        <div class="block-title">${highlightKeyword(group.개념, keyword)}</div>
+        <div style="font-size:11px; color:var(--text-light);">${group.소단원}</div>
+        <div class="block-count">${group.문제들.length}문제</div>
+      `;
+      block.onclick = () => startQuizFromSearch(group);
+      grid.appendChild(block);
+    });
+  }
+  
+  function highlightKeyword(text, keyword) {
+    if (!keyword) return text;
+    const regex = new RegExp('(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return String(text).replace(regex, '<span style="background:#fef08a; padding:0 2px; border-radius:3px;">$1</span>');
+  }
+  
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    handleSearch();
+    document.getElementById('searchInput').focus();
+  }
+  
+  // 검색 결과에서 바로 퀴즈 시작
+  function startQuizFromSearch(group) {
+    // 가상의 소단원 정보 설정
+    currentSubUnit = {
+      이름: group.소단원,
+      대단원: group.대단원,
+      중단원: group.중단원,
+      코드: group.코드
+    };
+    startQuiz(group.개념);
+  }
+  
+  // ===== 관련개념 블록 (가나다순) =====
+  function selectSubUnit(su) {
+    currentSubUnit = su;
+    const icon = PART_ICON[su.코드] || '📘';
+    document.getElementById('conceptBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">${icon}</span>
+      <span>${su.대단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${su.중단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${su.이름}</span>
+    `;
+    renderConceptGrid();
+    showScreen('conceptScreen');
+  }
+  
+  function renderConceptGrid() {
+    const grid = document.getElementById('conceptGrid');
+    grid.innerHTML = '';
+    const subQs = allQuestions.filter(q => q.소단원 === currentSubUnit.이름);
+    const concepts = [...new Set(subQs.map(q => q.관련개념))].filter(Boolean);
+    concepts.sort((a, b) => String(a).localeCompare(String(b), 'ko'));
+    
+    if (concepts.length === 0) {
+      grid.innerHTML = '<div class="empty-state">아직 개념이 등록되지 않았어요</div>';
+      return;
+    }
+    
+    concepts.forEach(concept => {
+      const cQs = subQs.filter(q => q.관련개념 === concept);
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.innerHTML = `
+        <div class="block-title">${concept}</div>
+        <div class="block-count">${cQs.length}문제</div>
+      `;
+      block.onclick = () => startQuiz(concept);
+      grid.appendChild(block);
+    });
+  }
+  
+  // ===== 퀴즈 =====
+  function startQuiz(concept) {
+    isMock = false;
+    currentConcept = concept;
+    const qs = allQuestions.filter(q => 
+      q.소단원 === currentSubUnit.이름 && q.관련개념 === concept
+    );
+    quizQuestions = orderByDifficulty(qs);
+    currentIndex = 0;
+    correctCount = 0;
+    
+    document.getElementById('quizBackBtn').textContent = '← 개념 선택으로';
+    const icon = PART_ICON[currentSubUnit.코드] || '📘';
+    document.getElementById('quizBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">${icon}</span>
+      <span>${currentSubUnit.대단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${currentSubUnit.중단원}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${currentSubUnit.이름}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${concept}</span>
+    `;
+    
+    showScreen('quizScreen');
+    showQuestion();
+  }
+  
+  function retryQuiz() {
+    if (isMock) { runMock(mockUnits, mockCount); return; }
+    if (currentSubUnit && currentConcept) startQuiz(currentConcept);
+    else goToSubUnitScreen();
+  }
+  
+  // ===== 모의고사 =====
+  // 소단원 → 관련개념 트리 만들기 (입력 순서 유지)
+  const MOCK_SEP = '|||';
+  function mockKey(sub, concept) { return sub + MOCK_SEP + concept; }
+  
+  function getMockTree() {
+    const subs = [];               // [{소단원, count, concepts:[{관련개념,count}]}]
+    const subMap = new Map();
+    allQuestions.forEach(q => {
+      if (!q.소단원 || !q.관련개념) return;
+      let sub = subMap.get(q.소단원);
+      if (!sub) {
+        sub = { 소단원: q.소단원, count: 0, concepts: [], _cMap: new Map() };
+        subMap.set(q.소단원, sub);
+        subs.push(sub);
+      }
+      sub.count++;
+      let c = sub._cMap.get(q.관련개념);
+      if (!c) { c = { 관련개념: q.관련개념, count: 0 }; sub._cMap.set(q.관련개념, c); sub.concepts.push(c); }
+      c.count++;
+    });
+    return subs;
+  }
+  
+  function openMockSetup() {
+    const tree = getMockTree();
+    const listEl = document.getElementById('mockUnitList');
+    
+    if (tree.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 문제가 없어요</p>';
+    } else {
+      let html = '';
+      tree.forEach((sub, si) => {
+        html += `<div class="mock-mid-block">
+          <label class="mock-mid">
+            <input type="checkbox" class="mid-cb" data-mid="${si}" onchange="onMidToggle(this)">
+            <span class="m-name">${sub.소단원}</span>
+            <span class="m-count">${sub.count}문제</span>
+          </label>
+          <div class="mock-subs">`;
+        sub.concepts.forEach(c => {
+          const val = mockKey(sub.소단원, c.관련개념).replace(/"/g, '&quot;');
+          html += `<label class="mock-sub">
+            <input type="checkbox" class="sub-cb" data-mid="${si}" value="${val}" onchange="onSubToggle(this)">
+            <span class="s-name">${c.관련개념}</span>
+            <span class="s-count">${c.count}</span>
+          </label>`;
+        });
+        html += `</div></div>`;
       });
-```
-
-## 2. `doGet` 분기에 saveConcept(+선택 getConcepts) 추가
-
-```javascript
-    } else if (action === 'getConcepts') {
-      return jsonResponse(getConcepts());
-    } else if (action === 'saveConcept') {
-      return jsonResponse(saveConcept({
-        학번: e.parameter.학번,
-        이름: e.parameter.이름,
-        개념ID: e.parameter.개념ID,
-        제목: e.parameter.제목,
-        학생답안: e.parameter.학생답안,
-        점수: e.parameter.점수
-      }));
-```
-
-## 3. 함수 두 개 새로 추가 (`getQuestions` 아래 아무 곳)
-
-```javascript
-function getConcepts() {
-  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Concepts');
-  if (!sheet) return { status: 'ok', data: [] };   // 시트 없으면 빈 목록
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return { status: 'ok', data: [] };
-  const headers = data[0];
-  const rows = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = {};
-    headers.forEach((h, idx) => { row[h] = data[i][idx]; });
-    rows.push(row);
+      listEl.innerHTML = html;
+    }
+    
+    refreshMidStates();
+    setMockCount(mockCount);
+    updateMockInfo();
+    showScreen('mockScreen');
   }
-  return { status: 'ok', data: rows };
-}
-
-function saveConcept(data) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss.getSheetByName('ConceptResponses');
-  if (!sheet) {                                    // 시트 없으면 자동 생성 + 헤더
-    sheet = ss.insertSheet('ConceptResponses');
-    sheet.appendRow(['타임스탬프', '학번', '이름', '개념ID', '제목', '학생답안', '점수']);
+  
+  // 관련개념 하나 토글 → 부모(소단원)·전체 상태 갱신
+  function onSubToggle(cb) {
+    cb.closest('.mock-sub').classList.toggle('on', cb.checked);
+    refreshMidStates();
+    updateMockInfo();
   }
-  sheet.appendRow([
-    new Date(),
-    data.학번,
-    data.이름,
-    data.개념ID,
-    data.제목,
-    data.학생답안,
-    data.점수
-  ]);
-  return { status: 'ok', message: '개념 기록 저장 완료' };
-}
-```
-
-## 4. 반드시 재배포
-
-배포 → 배포 관리 → ✏️ → **버전: 새 버전** → 배포. (URL 유지)
-
-점검: 브라우저에서 `[API_URL]?action=loginAndGetData&studentId=20101` → 응답에 `"concepts":[...]`가 보이면 성공.
-
----
-
-## Concepts 시트 만들기
-
-시트 이름: **Concepts** (대소문자 정확히)
-
-| 열 | 헤더 | 설명 | 예시 |
-|---|---|---|---|
-| A | 개념ID | **기록 구분용 이름표**(자유). 없어도 동작하지만, 기록에서 어느 지문인지 알아보려면 적어두길 권장 | `atm-c-01` |
-| B | 대단원 | breadcrumb 표시 | 대기 |
-| C | 소단원 | 목록 그룹 | 대류권 |
-| D | 제목 | 지문 카드 제목 | 대류권의 특징 |
-| E | 지문 | 본문. **빈칸은 `[[정답]]`으로 감싸기** | 아래 예시 |
-
-**지문(E열) 예시:**
-
-```
-대류권은 높이 올라갈수록 [[기온]]이 낮아진다.
-공기의 [[대류]] 현상이 활발해 기상 현상이 나타난다.
-성층권에는 [[오존/오존층]]이 있어 자외선을 흡수한다.
-```
-
-- `[[ ]]`로 감싼 부분이 전부 빈칸(랜덤 없음).
-- 한 빈칸에 여러 정답 허용: 슬래시 → `[[오존/오존층]]`
-- 셀 안 줄바꿈(Alt+Enter) 반영됨. 채점은 공백/대소문자 무시.
-
-> **개념ID란?** 코드가 채점·표시에 쓰는 값이 아니라, 선생님이 "몇 번 지문"인지 알아보고 **기록 시트에서 지문을 구분**하기 위한 이름표입니다. 비워도 앱은 동작하지만, 기록을 남기기로 했으니 적어두는 걸 추천합니다.
-
----
-
-## ConceptResponses 시트 (기록)
-
-- **따로 안 만들어도 됨** — 학생이 처음 채점하는 순간 Apps Script가 시트를 자동으로 만들고 헤더도 넣습니다.
-- 미리 만들고 싶으면 시트 이름 `ConceptResponses`, 헤더:
-
-| A | B | C | D | E | F | G |
-|---|---|---|---|---|---|---|
-| 타임스탬프 | 학번 | 이름 | 개념ID | 제목 | 학생답안 | 점수 |
-
-- **한 지문 = 한 줄**로 기록됩니다.
-- 학생답안 예시: `기온(O) | 바람(X) | 오존(O)` — 각 빈칸의 입력값과 정오(O/X)를 한 칸에 모음.
-- 점수 예시: `2/3`
+  
+  // 소단원 토글 → 그 아래 관련개념 전부 선택/해제
+  function onMidToggle(cb) {
+    const mi = cb.dataset.mid;
+    document.querySelectorAll(`.sub-cb[data-mid="${mi}"]`).forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
+    });
+    refreshMidStates();
+    updateMockInfo();
+  }
+  
+  // 전체 선택 토글
+  function onMasterToggle(cb) {
+    document.querySelectorAll('#mockUnitList .sub-cb').forEach(s => {
+      s.checked = cb.checked;
+      s.closest('.mock-sub').classList.toggle('on', cb.checked);
+    });
+    refreshMidStates();
+    updateMockInfo();
+  }
+  
+  // 중단원·전체 체크박스의 체크/부분선택(–) 상태 다시 계산
+  function refreshMidStates() {
+    document.querySelectorAll('.mid-cb').forEach(mid => {
+      const subs = Array.from(document.querySelectorAll(`.sub-cb[data-mid="${mid.dataset.mid}"]`));
+      const on = subs.filter(s => s.checked).length;
+      mid.checked = on === subs.length && subs.length > 0;
+      mid.indeterminate = on > 0 && on < subs.length;
+      mid.closest('.mock-mid').classList.toggle('on', mid.checked);
+    });
+    const allSubs = Array.from(document.querySelectorAll('#mockUnitList .sub-cb'));
+    const onAll = allSubs.filter(s => s.checked).length;
+    const master = document.getElementById('mockMaster');
+    master.checked = onAll === allSubs.length && allSubs.length > 0;
+    master.indeterminate = onAll > 0 && onAll < allSubs.length;
+  }
+  
+  function setMockCount(n) {
+    mockCount = n;
+    document.querySelectorAll('#mockCountRow .mock-count').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.n) === n);
+    });
+    updateMockInfo();
+  }
+  
+  // 선택된 (소단원+관련개념) 복합키 목록
+  function getCheckedMockUnits() {
+    return Array.from(document.querySelectorAll('#mockUnitList .sub-cb:checked')).map(cb => cb.value);
+  }
+  
+  // 선택된 복합키에 해당하는 문제만 추리기
+  function poolFromUnits(units) {
+    const set = new Set(units);
+    return allQuestions.filter(q => set.has(mockKey(q.소단원, q.관련개념)));
+  }
+  
+  function updateMockInfo() {
+    const checked = getCheckedMockUnits();
+    const info = document.getElementById('mockInfo');
+    const startBtn = document.getElementById('mockStartBtn');
+    if (checked.length === 0) {
+      info.textContent = '범위를 하나 이상 선택해 주세요';
+      startBtn.disabled = true;
+      return;
+    }
+    const pool = poolFromUnits(checked);
+    const willBe = Math.min(mockCount, pool.length);
+    info.innerHTML = `선택한 범위 <strong>${pool.length}문제</strong> 중 <strong>${willBe}문제</strong> 출제`;
+    startBtn.disabled = pool.length === 0;
+  }
+  
+  function startMockExam() {
+    const checked = getCheckedMockUnits();
+    if (checked.length === 0) return;
+    runMock(checked, mockCount);
+  }
+  
+  // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
+  function runMock(units, count) {
+    const pool = poolFromUnits(units);
+    if (pool.length === 0) return;
+    
+    isMock = true;
+    mockUnits = units.slice();       // 선택된 (소단원+개념) 복합키 목록
+    mockCount = count;
+    currentConcept = null;
+    
+    quizQuestions = orderByDifficulty(shuffle(pool).slice(0, count));   // 랜덤 N개 → 저→중→고 정렬
+    currentIndex = 0;
+    correctCount = 0;
+    
+    document.getElementById('quizBackBtn').textContent = '← 모의고사 설정으로';
+    document.getElementById('quizBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">📝</span>
+      <span>모의고사</span>
+      <span class="breadcrumb-sep">›</span>
+      <span>${quizQuestions.length}문제</span>
+    `;
+    
+    showScreen('quizScreen');
+    showQuestion();
+  }
+  
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  
+  // 난이도순 정렬: 저급 → 중급 → 고급 → (미지정), 같은 난이도 안에선 랜덤
+  function orderByDifficulty(arr) {
+    const rank = { '저급': 0, '중급': 1, '고급': 2 };
+    const groups = [[], [], [], []];   // 저/중/고/기타
+    arr.forEach(q => {
+      const d = String(q.난이도 || '').trim();
+      groups[d in rank ? rank[d] : 3].push(q);
+    });
+    return groups.reduce((out, g) => out.concat(shuffle(g)), []);
+  }
+  
+  // ===== 정답 파싱 =====
+  // "하강|오존" → [["하강"], ["오존"]]  (빈칸 2개, 각 1개 정답)
+  // "9.8/9.8m/s²" → [["9.8", "9.8m/s²"]]  (빈칸 1개, 정답 후보 2개)
+  // "하강|오존/O3" → [["하강"], ["오존", "O3"]]  (빈칸 2개, 2번째 칸 정답 2개)
+  function parseAnswer(answerStr) {
+    return String(answerStr).split('|').map(blank => 
+      blank.split('/').map(s => s.trim()).filter(Boolean)
+    );
+  }
+  
+  function showQuestion() {
+    const q = quizQuestions[currentIndex];
+    const total = quizQuestions.length;
+    const num = currentIndex + 1;
+    
+    document.getElementById('progressText').textContent = `${num} / ${total}`;
+    document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
+    document.getElementById('progressFill').style.width = `${(num / total) * 100}%`;
+    document.getElementById('conceptText').textContent = '💡 ' + (q.관련개념 || '');
+    
+    // 난이도 배지 (시트 '난이도' 열: 저급/중급/고급)
+    const diffEl = document.getElementById('difficultyBadge');
+    const diff = String(q.난이도 || '').trim();
+    if (diff) {
+      const cls = diff === '저급' ? 'diff-low'
+                : diff === '중급' ? 'diff-mid'
+                : diff === '고급' ? 'diff-high'
+                : 'diff-etc';
+      diffEl.className = 'diff-badge ' + cls;
+      diffEl.textContent = diff;
+    } else {
+      diffEl.className = 'diff-badge hidden';
+      diffEl.textContent = '';
+    }
+    
+    // 이미지
+    const img = document.getElementById('questionImg');
+    let src = q.문제그림URL;
+    if (src) {
+      // 시트에 직접 적은 경우: http(s) 또는 image/ 로 시작하면 그대로, 아니면 image/ 붙임
+      if (!src.startsWith('http') && !src.startsWith('image/')) src = IMAGE_BASE + src;
+      img.src = src;
+      img.classList.remove('hidden');
+    } else if (q.문제ID) {
+      // 자동 경로: image/[영역폴더]/[문제ID].png  (예: image/atm/atm-001.png)
+      const folder = partCode(q.문제ID);
+      img.src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
+      img.classList.remove('hidden');
+    } else {
+      img.classList.add('hidden');
+    }
+    
+    // 문제 유형 판별: 빈칸(기본) vs 객관식(합답형)
+    const correctParsed = parseAnswer(q.정답);
+    currentIsChoice = isChoiceType(q);
+    
+    const area = document.getElementById('quizArea');
+    area.innerHTML = '';
+    
+    if (currentIsChoice) {
+      // ===== 객관식(합답형): ㄱ/ㄴ/ㄷ 조합 보기 버튼 =====
+      const wrap = document.createElement('div');
+      wrap.className = 'choice-wrap';
+      getChoiceOptions(q.정답).forEach(opt => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice-btn';
+        b.dataset.val = opt;
+        b.textContent = opt;
+        b.onclick = () => {
+          // 한 개만 선택 (라디오처럼)
+          wrap.querySelectorAll('.choice-btn').forEach(x => x.classList.remove('on'));
+          b.classList.add('on');
+        };
+        wrap.appendChild(b);
+      });
+      area.appendChild(wrap);
+      const hint = document.createElement('div');
+      hint.className = 'choice-hint';
+      hint.textContent = '보기 중 하나를 골라 제출하세요';
+      area.appendChild(hint);
+    } else {
+      // ===== 빈칸형: 빈칸 개수만큼 입력칸 =====
+      const blankCount = correctParsed.length;
+      const wrap = document.createElement('div');
+      wrap.className = 'blank-inputs';
+      
+      for (let i = 0; i < blankCount; i++) {
+        const row = document.createElement('div');
+        row.className = 'blank-row';
+        
+        if (blankCount > 1) {
+          const label = document.createElement('div');
+          label.className = 'blank-label';
+          const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+          label.textContent = circled[i] || (i+1);
+          row.appendChild(label);
+        }
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'blank-input';
+        input.dataset.idx = i;
+        input.placeholder = blankCount > 1 ? `${i+1}번째 빈칸` : '정답을 입력하세요';
+        input.onkeypress = (e) => {
+          if (e.key === 'Enter') {
+            const inputs = document.querySelectorAll('.blank-input');
+            if (i === inputs.length - 1) submitAnswer();
+            else inputs[i+1].focus();
+          }
+        };
+        row.appendChild(input);
+        wrap.appendChild(row);
+      }
+      area.appendChild(wrap);
+    }
+    
+    wrongAttempts = 0;                 // 이 문제 오답 횟수 초기화
+    document.getElementById('resultMsg').innerHTML = '';
+    showSolvingButtons();              // 제출·정답 보기·넘어가기 표시, 다음 숨김
+    
+    setTimeout(() => {
+      const firstInput = document.querySelector('.blank-input');
+      if (firstInput) firstInput.focus();
+    }, 200);
+  }
+  
+  // 객관식 여부: 문제유형(F열)에 '객관' 또는 'ㄱㄴㄷ'가 들어가면 객관식
+  function isChoiceType(q) {
+    const t = String(q.문제유형 || '').trim();
+    return t.includes('객관') || t.includes('ㄱㄴㄷ');
+  }
+  
+  // 정답에 쓰인 보기 글자(ㄱㄴㄷ, 필요시 ㄹㅁ)로 조합 보기 만들기
+  function getChoiceOptions(answer) {
+    const base = ['ㄱ', 'ㄴ', 'ㄷ'];
+    const ans = String(answer);
+    ['ㄹ', 'ㅁ'].forEach(l => { if (ans.includes(l)) base.push(l); });
+    // base의 모든 비어있지 않은 부분집합 (크기 오름차순 → ㄱ,ㄴ,ㄷ,ㄱㄴ,ㄱㄷ,ㄴㄷ,ㄱㄴㄷ ...)
+    const subsets = [];
+    for (let mask = 1; mask < (1 << base.length); mask++) {
+      let combo = '';
+      for (let i = 0; i < base.length; i++) if (mask & (1 << i)) combo += base[i];
+      subsets.push(combo);
+    }
+    subsets.sort((a, b) => a.length - b.length || a.localeCompare(b));
+    return subsets;
+  }
+  
+  function normalize(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).trim().replace(/\s+/g, '').toLowerCase();
+  }
+  
+  function normalizeForKor(s) {
+    let str = normalize(s);
+    if (/^[ㄱ-ㅎ]+$/.test(str)) return str.split('').sort().join('');
+    return str;
+  }
+  
+  function checkBlank(studentAns, candidates) {
+    const sAns = normalizeForKor(studentAns);
+    return candidates.map(c => normalizeForKor(c)).includes(sAns);
+  }
+  
+  async function submitAnswer() {
+    const q = quizQuestions[currentIndex];
+    const correctParsed = parseAnswer(q.정답);
+    const inputs = document.querySelectorAll('.blank-input');
+    
+    // 학생 답안 수집 (객관식 / 빈칸 공통)
+    let answers;
+    if (currentIsChoice) {
+      const sel = document.querySelector('.choice-btn.on');
+      if (!sel) return;                 // 아무것도 안 고르면 무시
+      answers = [sel.dataset.val];
+    } else {
+      answers = [];
+      for (let i = 0; i < inputs.length; i++) {
+        const v = inputs[i].value.trim();
+        if (!v) { inputs[i].focus(); return; }  // 안 채운 칸으로 포커스
+        answers.push(v);
+      }
+    }
+    
+    // 채점
+    const results = answers.map((a, i) => checkBlank(a, correctParsed[i]));
+    const correctNum = results.filter(r => r).length;
+    const totalNum = results.length;
+    const allCorrect = correctNum === totalNum;
+    
+    const msgEl = document.getElementById('resultMsg');
+    
+    if (allCorrect) {
+      // ===== 정답 =====
+      correctCount++;
+      document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
+      msgEl.innerHTML = `<div class="result-msg result-correct">
+        <span class="result-icon">✓</span> 정답이에요!
+        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+      </div>`;
+      saveResult(q, answers, true);   // O 로 저장
+      lockQuestion();                 // 입력 잠금
+      showNextButton();               // 다음/결과 버튼
+      return;
+    }
+    
+    // ===== 오답 · 부분정답 =====
+    wrongAttempts++;
+    
+    // 오답 N번이면 자동으로 정답 공개
+    if (wrongAttempts >= REVEAL_AFTER) {
+      revealAnswer(true);   // 자동 공개
+      return;
+    }
+    
+    const left = REVEAL_AFTER - wrongAttempts;  // 남은 시도 횟수
+    if (!currentIsChoice && correctNum > 0) {
+      // 빈칸 부분 정답: 어느 칸이 맞고 틀렸는지만 힌트 (정답은 안 보여줌)
+      let hintHtml = '<div class="answer-detail">';
+      results.forEach((r, i) => {
+        hintHtml += `<div class="answer-detail-row">
+          <span class="answer-mark ${r ? 'ok' : 'no'}">${r ? '✓' : '✗'}</span>
+          <span>${i+1}번 빈칸: ${r ? '맞았어요!' : '다시 생각해볼까요?'}</span>
+        </div>`;
+      });
+      hintHtml += '</div>';
+      msgEl.innerHTML = `<div class="result-msg result-partial">
+        <span class="result-icon">△</span> ${totalNum}개 중 ${correctNum}개 맞았어요. 틀린 칸을 다시 채워볼까요? <em>(${left}번 더 틀리면 정답 공개)</em>
+        ${hintHtml}
+      </div>`;
+    } else {
+      msgEl.innerHTML = `<div class="result-msg result-wrong">
+        <span class="result-icon">✗</span> 다시 한번 생각해 볼까요? <em>(${left}번 더 틀리면 정답 공개)</em>
+      </div>`;
+    }
+    // 빈칸형이면 틀린 첫 칸으로 포커스 (객관식은 그대로 다시 선택)
+    if (!currentIsChoice) {
+      const firstWrong = results.findIndex(r => !r);
+      if (firstWrong >= 0 && inputs[firstWrong]) {
+        inputs[firstWrong].focus();
+        inputs[firstWrong].select();
+      }
+    }
+  }
+  
+  // ===== 정답 공개 ('정답 보기' 버튼 또는 3번 오답 자동) =====
+  function revealAnswer(auto) {
+    const q = quizQuestions[currentIndex];
+    const correctParsed = parseAnswer(q.정답);
+    // 학생이 마지막에 고른/적은 답 (저장용)
+    let answers;
+    if (currentIsChoice) {
+      const sel = document.querySelector('.choice-btn.on');
+      answers = sel ? [sel.dataset.val] : [''];
+    } else {
+      answers = Array.from(document.querySelectorAll('.blank-input')).map(i => i.value.trim());
+    }
+    
+    let detailHtml = '<div class="answer-detail">';
+    if (currentIsChoice) {
+      detailHtml += `<div class="answer-detail-row">
+        <span class="answer-mark no">✗</span>
+        <span>정답: <strong>${correctParsed.map(c => c.join(' 또는 ')).join(', ')}</strong></span>
+      </div>`;
+    } else {
+      correctParsed.forEach((cands, i) => {
+        detailHtml += `<div class="answer-detail-row">
+          <span class="answer-mark no">✗</span>
+          <span>${i+1}번 빈칸: <strong>${cands.join(' 또는 ')}</strong></span>
+        </div>`;
+      });
+    }
+    detailHtml += '</div>';
+    
+    const head = auto ? '여러 번 틀렸어요. 정답을 확인해요!' : '정답을 확인해요!';
+    document.getElementById('resultMsg').innerHTML = `<div class="result-msg result-wrong">
+      <span class="result-icon">💡</span> ${head}
+      ${detailHtml}
+      ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+    </div>`;
+    
+    saveResult(q, answers.length ? answers : [''], false);  // X 로 저장 (점수 미반영)
+    lockQuestion();
+    showNextButton();
+  }
+  
+  // ===== '넘어가기' (정답 안 보고 다음 문제로) =====
+  function skipQuestion() {
+    const q = quizQuestions[currentIndex];
+    saveResult(q, ['(건너뜀)'], false);   // 건너뜀으로 기록 (점수 미반영)
+    if (currentIndex < quizQuestions.length - 1) {
+      nextQuestion();
+    } else {
+      showResult();
+    }
+  }
+  
+  // ===== 공통 헬퍼 =====
+  function saveResult(q, answers, isCorrect) {
+    apiCall({
+      action: 'saveAnswer',
+      학번: currentStudent.학번,
+      이름: currentStudent.이름,
+      문제ID: q.문제ID,
+      학생답안: answers.join(' | '),
+      정답여부: isCorrect ? 'true' : 'false'
+    }).catch(err => console.error('저장 실패:', err));
+  }
+  
+  function showSolvingButtons() {
+    document.getElementById('submitBtn').classList.remove('hidden');
+    document.getElementById('revealBtn').classList.remove('hidden');
+    document.getElementById('skipBtn').classList.remove('hidden');
+    document.getElementById('nextBtn').classList.add('hidden');
+    // 입력·버튼 다시 활성화 (이전 문제에서 잠갔을 수 있음)
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('revealBtn').disabled = false;
+    document.getElementById('skipBtn').disabled = false;
+  }
+  
+  function lockQuestion() {
+    document.querySelectorAll('.blank-input').forEach(i => i.disabled = true);
+    document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+    document.getElementById('submitBtn').classList.add('hidden');
+    document.getElementById('revealBtn').classList.add('hidden');
+    document.getElementById('skipBtn').classList.add('hidden');
+  }
+  
+  function showNextButton() {
+    const nextBtn = document.getElementById('nextBtn');
+    if (currentIndex < quizQuestions.length - 1) {
+      nextBtn.textContent = '다음 문제 →';
+      nextBtn.onclick = nextQuestion;
+    } else {
+      nextBtn.textContent = '결과 보기 🎉';
+      nextBtn.onclick = showResult;
+    }
+    nextBtn.classList.remove('hidden');
+  }
+  
+  function nextQuestion() {
+    currentIndex++;
+    showQuestion();
+  }
+  
+  function showResult() {
+    const total = quizQuestions.length;
+    const pct = total ? Math.round((correctCount / total) * 100) : 0;
+    const heading = isMock ? '모의고사' : ((currentConcept || '이 개념') + ' 개념');
+    document.getElementById('completeMsg').innerHTML =
+      `${heading}<br><span class="pct">${pct}%</span> 완료!`;
+    let comment = '';
+    if (pct === 100) comment = '🌟 완벽해요!';
+    else if (pct >= 80) comment = '👏 잘했어요!';
+    else if (pct >= 60) comment = '💪 조금만 더!';
+    else comment = '📚 다시 한번 풀어볼까요?';
+    document.getElementById('scorePercent').textContent =
+      `${total}문제 중 ${correctCount}개 맞았어요 · ${comment}`;
+    showScreen('resultScreen');
+  }
+  
+  function quitQuiz() {
+    if (currentIndex > 0 || correctCount > 0) {
+      if (!confirm('정말 그만 푸시겠어요?')) return;
+    }
+    if (isMock) {
+      openMockSetup();   // 모의고사 설정 화면으로
+      return;
+    }
+    // 같은 소단원의 개념 선택 화면으로
+    if (currentSubUnit) {
+      renderConceptGrid();
+      showScreen('conceptScreen');
+    } else {
+      goToSubUnitScreen();
+    }
+  }
+</script>
+</body>
+</html>
