@@ -1326,13 +1326,12 @@
     
     if (currentStudent) {
       apiCall({
-        action: 'saveConcept',
+        action: 'saveEssay',
         학번: currentStudent.학번,
         이름: currentStudent.이름,
-        개념ID: e.문제ID || '',
-        제목: '서술형: ' + (e.개념 || e.소단원 || ''),
-        학생답안: answer,
-        점수: '-'
+        문제ID: e.문제ID || '',
+        개념: e.개념 || e.소단원 || '',
+        학생답안: answer
       }).catch(err => console.error('서술형 기록 저장 실패:', err));
     }
     
@@ -2671,16 +2670,15 @@
       </div>
       <div class="essay-note">내 답안은 기록되었어요. 모범답안과 비교해 보세요 :)</div>`;
     
-    // ConceptResponses 시트에 기록 (문제 풀기 정답률/틀린문제에 안 섞이도록)
+    // 서술형 답안 전용 시트(EssayResponses)에 기록
     if (currentStudent) {
       apiCall({
-        action: 'saveConcept',
+        action: 'saveEssay',
         학번: currentStudent.학번,
         이름: currentStudent.이름,
-        개념ID: q.문제ID || '',
-        제목: '서술형: ' + (q.관련개념 || q.문제ID || ''),
-        학생답안: answer,
-        점수: '-'
+        문제ID: q.문제ID || '',
+        개념: q.관련개념 || q.문제ID || '',
+        학생답안: answer
       }).catch(err => console.error('서술형 기록 저장 실패:', err));
     }
     
