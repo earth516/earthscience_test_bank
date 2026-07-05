@@ -733,21 +733,12 @@
     </div>
   </div>
 
-  <!-- 서술형 연습: 범위 선택 (소단원 → 개념 체크) -->
+  <!-- 서술형 연습: 소단원 선택 -->
   <div id="essayListScreen" class="card hidden">
     <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
     <h2>✍️ 서술형 연습하기</h2>
-    <label class="mock-master">
-      <input type="checkbox" id="essayMaster" onchange="onEssayMasterToggle(this)">
-      <span>전체 선택</span>
-    </label>
-    <div id="essayList" class="mock-tree"></div>
-    <div class="mock-count-row" style="margin-top:16px;">
-      <button class="mock-count on" id="eOrderSeq" onclick="setEssayOrderMode('seq')">순서대로</button>
-      <button class="mock-count" id="eOrderRandom" onclick="setEssayOrderMode('random')">랜덤</button>
-    </div>
-    <div class="mock-info" id="essayInfo"></div>
-    <button class="btn-primary" id="essayStartBtn" onclick="startEssayPractice()">시작하기 🚀</button>
+    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 서술형을 연습해요</p>
+    <div id="essayList"></div>
   </div>
 
   <!-- 서술형 연습: 풀이 -->
@@ -762,6 +753,7 @@
     <div id="essayResult"></div>
     <div class="actions">
       <button id="essaySubmitBtn" class="btn-primary" onclick="submitEssayPractice()">제출하고 모범답안 보기</button>
+      <button id="essaySkipBtn" class="btn-secondary" onclick="skipEssay()">넘어가기</button>
       <button id="essayNextBtn" class="btn-primary hidden" onclick="nextEssay()">다음 →</button>
     </div>
   </div>
@@ -1152,121 +1144,47 @@
   // ===== 서술형 연습하기 =====
   let essaySeq = [];
   let essayPos = 0;
-  let essayOrderMode = 'seq';
   let currentEssay = null;
-  
-  function setEssayOrderMode(m) {
-    essayOrderMode = m;
-    document.getElementById('eOrderSeq').classList.toggle('on', m === 'seq');
-    document.getElementById('eOrderRandom').classList.toggle('on', m === 'random');
-  }
   
   function goToEssayList() {
     renderEssayList();
     showScreen('essayListScreen');
   }
   
-  // 소단원 → 개념(D열) 트리
+  // 소단원 버튼 목록 (시트 입력 순서)
   function renderEssayList() {
     const listEl = document.getElementById('essayList');
     const items = (allEssay || []).filter(e => e.문제 && e.소단원);
     if (items.length === 0) {
       listEl.innerHTML = '<p style="color:var(--text-light)">아직 서술형 문제가 없어요</p>';
-      document.getElementById('essayStartBtn').disabled = true;
       return;
     }
-    const groups = [];
-    const gmap = new Map();
-    allEssay.forEach((e, idx) => {
-      if (!(e.문제 && e.소단원)) return;
+    const subs = [];
+    const smap = new Map();
+    items.forEach(e => {
       const key = e.소단원;
-      let g = gmap.get(key);
-      if (!g) { g = { 소단원: key, concepts: [], _cmap: new Map() }; gmap.set(key, g); groups.push(g); }
-      const cKey = e.개념 || e.문제;   // 개념 없으면 문제 자체를 항목으로
-      let con = g._cmap.get(cKey);
-      if (!con) { con = { 이름: cKey, idxs: [] }; g._cmap.set(cKey, con); g.concepts.push(con); }
-      con.idxs.push(idx);
+      let s = smap.get(key);
+      if (!s) { s = { 소단원: key, count: 0 }; smap.set(key, s); subs.push(s); }
+      s.count++;
     });
-    
     let html = '';
-    groups.forEach((g, gi) => {
-      html += `<div class="mock-mid-block">
-        <label class="mock-mid">
-          <input type="checkbox" class="e-mid-cb" data-mid="${gi}" onchange="onEssayMidToggle(this)">
-          <span class="m-name">${g.소단원}</span>
-          <span class="m-count">${g.concepts.length}개</span>
-        </label>
-        <div class="mock-subs">`;
-      g.concepts.forEach(con => {
-        const tag = con.idxs.length > 1 ? ` <span class="s-count">${con.idxs.length}문제</span>` : '';
-        html += `<label class="mock-sub">
-          <input type="checkbox" class="e-sub-cb" data-mid="${gi}" value="${con.idxs.join(',')}" onchange="onEssaySubToggle(this)">
-          <span class="s-name">${con.이름}</span>${tag}
-        </label>`;
-      });
-      html += `</div></div>`;
+    subs.forEach(s => {
+      const safe = s.소단원.replace(/"/g, '&quot;');
+      html += `<button class="passage-item" onclick="startEssaySubunit('${safe}')">
+        <span class="p-title">${s.소단원}</span>
+        <span class="p-blanks">${s.count}문제</span>
+      </button>`;
     });
     listEl.innerHTML = html;
-    refreshEssayMidStates();
-    updateEssayInfo();
   }
   
-  function onEssaySubToggle(cb) {
-    cb.closest('.mock-sub').classList.toggle('on', cb.checked);
-    refreshEssayMidStates(); updateEssayInfo();
-  }
-  function onEssayMidToggle(cb) {
-    document.querySelectorAll(`.e-sub-cb[data-mid="${cb.dataset.mid}"]`).forEach(s => {
-      s.checked = cb.checked; s.closest('.mock-sub').classList.toggle('on', cb.checked);
+  // 소단원 클릭 → 그 소단원 서술형을 시트 순서대로 시작
+  function startEssaySubunit(sub) {
+    essaySeq = [];
+    allEssay.forEach((e, idx) => {
+      if (e.문제 && e.소단원 === sub) essaySeq.push(idx);
     });
-    refreshEssayMidStates(); updateEssayInfo();
-  }
-  function onEssayMasterToggle(cb) {
-    document.querySelectorAll('#essayList .e-sub-cb').forEach(s => {
-      s.checked = cb.checked; s.closest('.mock-sub').classList.toggle('on', cb.checked);
-    });
-    refreshEssayMidStates(); updateEssayInfo();
-  }
-  function refreshEssayMidStates() {
-    document.querySelectorAll('.e-mid-cb').forEach(mid => {
-      const subs = Array.from(document.querySelectorAll(`.e-sub-cb[data-mid="${mid.dataset.mid}"]`));
-      const on = subs.filter(s => s.checked).length;
-      mid.checked = on === subs.length && subs.length > 0;
-      mid.indeterminate = on > 0 && on < subs.length;
-      mid.closest('.mock-mid').classList.toggle('on', mid.checked);
-    });
-    const all = Array.from(document.querySelectorAll('#essayList .e-sub-cb'));
-    const onAll = all.filter(s => s.checked).length;
-    const master = document.getElementById('essayMaster');
-    master.checked = onAll === all.length && all.length > 0;
-    master.indeterminate = onAll > 0 && onAll < all.length;
-  }
-  function getCheckedEssays() {
-    const idxs = [];
-    document.querySelectorAll('#essayList .e-sub-cb:checked').forEach(cb => {
-      String(cb.value).split(',').forEach(v => { if (v !== '') idxs.push(Number(v)); });
-    });
-    return idxs;
-  }
-  function updateEssayInfo() {
-    const checked = getCheckedEssays();
-    const info = document.getElementById('essayInfo');
-    const btn = document.getElementById('essayStartBtn');
-    if (checked.length === 0) {
-      info.textContent = '풀 문제를 하나 이상 선택해 주세요';
-      btn.disabled = true;
-    } else {
-      info.innerHTML = `선택한 문제 <strong>${checked.length}개</strong>`;
-      btn.disabled = false;
-    }
-  }
-  
-  function startEssayPractice() {
-    let seq = getCheckedEssays();
-    if (seq.length === 0) return;
-    if (essayOrderMode === 'random') seq = shuffle(seq);
-    else seq.sort((a, b) => a - b);
-    essaySeq = seq;
+    if (essaySeq.length === 0) return;
     essayPos = 0;
     openEssay(essaySeq[0]);
   }
@@ -1298,10 +1216,17 @@
       '<textarea id="essayPracticeInput" class="essay-input" placeholder="여기에 답을 작성하세요..."></textarea>';
     document.getElementById('essayResult').innerHTML = '';
     document.getElementById('essaySubmitBtn').classList.remove('hidden');
+    document.getElementById('essaySkipBtn').classList.remove('hidden');
     document.getElementById('essayNextBtn').classList.add('hidden');
     
     showScreen('essayScreen');
     setTimeout(() => { const t = document.getElementById('essayPracticeInput'); if (t) t.focus(); }, 200);
+  }
+  
+  // 넘어가기 (안 풀고 다음)
+  function skipEssay() {
+    if (essayPos < essaySeq.length - 1) openEssay(essaySeq[essayPos + 1]);
+    else goToEssayList();
   }
   
   function submitEssayPractice() {
@@ -1336,6 +1261,7 @@
     }
     
     document.getElementById('essaySubmitBtn').classList.add('hidden');
+    document.getElementById('essaySkipBtn').classList.add('hidden');
     const nextBtn = document.getElementById('essayNextBtn');
     nextBtn.textContent = (essayPos < essaySeq.length - 1) ? '다음 →' : '완료';
     nextBtn.onclick = (essayPos < essaySeq.length - 1) ? nextEssay : goToEssayList;
