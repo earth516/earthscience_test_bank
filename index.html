@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SJ 통합과학 문제은행</title>
+  <title>SJ 문제은행</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
@@ -305,6 +305,8 @@
     .mode-quiz { background: linear-gradient(135deg, var(--primary), #8b5cf6); }
     .mode-concept { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
     .mode-stats { background: linear-gradient(135deg, #14b8a6, #22c55e); }
+    .mode-essay { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+    .essay-prompt { font-size: 15px; color: var(--text); line-height: 1.6; margin: 4px 0 12px; white-space: pre-line; }
     /* 나의 학습 */
     .ml-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 22px; }
     .ml-card { background: #f8fafc; border-radius: 12px; padding: 14px 10px; text-align: center; }
@@ -426,6 +428,27 @@
     }
     .choice-btn:disabled { cursor: not-allowed; opacity: 0.55; }
     .choice-hint { color: var(--text-light); font-size: 13px; margin-top: 10px; text-align: center; }
+    /* 서술형 */
+    .essay-badge {
+      display: inline-block; font-size: 12px; font-weight: bold;
+      padding: 3px 10px; border-radius: 999px; background: #ede9fe; color: #6d28d9; margin-bottom: 10px;
+    }
+    .essay-input {
+      width: 100%; box-sizing: border-box; min-height: 120px;
+      border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+      font-size: 15px; font-family: inherit; line-height: 1.6; resize: vertical;
+    }
+    .essay-input:disabled { background: #f8fafc; color: var(--text-light); }
+    .essay-label { font-size: 13px; color: var(--text-light); margin-bottom: 4px; }
+    .essay-mine-body {
+      font-size: 14px; color: var(--text); line-height: 1.6;
+      background: #f8fafc; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;
+    }
+    .essay-model {
+      background: #eef7f0; border: 1px solid #bbe3c9; border-radius: 12px; padding: 14px 16px;
+    }
+    .essay-model-body { font-size: 14px; color: #14532d; line-height: 1.7; }
+    .essay-note { font-size: 12px; color: var(--text-light); text-align: center; margin-top: 12px; }
     /* 결과 */
     .result-msg {
       margin-top: 16px;
@@ -601,10 +624,10 @@
 <div class="container">
   <div class="header">
     <div class="logo-wrap">
-      <img src="image/logo.png" alt="SJ 통합과학 문제은행" onerror="this.style.display='none'">
+      <img src="image/logo.png" alt="SJ 문제은행" onerror="this.style.display='none'">
     </div>
-    <div class="title">SJ 통합과학 문제은행</div>
-    <div class="subtitle">INTEGRATED SCIENCE</div>
+    <div class="title">SJ 문제은행</div>
+    <div class="subtitle">EARTH SCIENCE</div>
   </div>
 
   <!-- 로그인 -->
@@ -617,7 +640,7 @@
 
     <div class="login-footer">
       <p class="report-note">🎁 문제 오류·오탈자 제보는 소소한 선물 증정 😮🥵</p>
-      <p class="copyright">© 2026 SJ 통합과학 문제은행 · All rights reserved.</p>
+      <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
       <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
     </div>
   </div>
@@ -639,6 +662,11 @@
         <span class="mode-emoji">📖</span>
         <span class="mode-title">개념 확인하기</span>
         <span class="mode-desc">지문 빈칸 채우기 · O/X 퀴즈</span>
+      </button>
+      <button class="mode-card mode-essay" onclick="goToEssayList()">
+        <span class="mode-emoji">✍️</span>
+        <span class="mode-title">서술형 연습하기</span>
+        <span class="mode-desc">직접 서술하고 모범답안과 비교</span>
       </button>
       <button class="mode-card mode-stats" onclick="goToMyLearning()">
         <span class="mode-emoji">📊</span>
@@ -702,6 +730,31 @@
       <button id="conceptGradeBtn" class="btn-primary" onclick="gradeConceptFill()">채점하기</button>
       <button id="conceptRetryBtn" class="btn-secondary hidden" onclick="retryConceptFill()">다시 풀기</button>
       <button id="conceptNextBtn" class="btn-primary hidden" onclick="nextConcept()">다음 지문 →</button>
+    </div>
+  </div>
+
+  <!-- 서술형 연습: 소단원 선택 -->
+  <div id="essayListScreen" class="card hidden">
+    <button class="btn-back" onclick="showScreen('modeScreen')">← 처음으로</button>
+    <h2>✍️ 서술형 연습하기</h2>
+    <p style="color: var(--text-light); margin-top:4px;">소단원을 골라 서술형을 연습해요</p>
+    <div id="essayList"></div>
+  </div>
+
+  <!-- 서술형 연습: 풀이 -->
+  <div id="essayScreen" class="card hidden">
+    <button class="btn-back" onclick="goToEssayList()">← 서술형 목록으로</button>
+    <div class="breadcrumb" id="essayBreadcrumb"></div>
+    <div class="progress-text"><span id="essayProgress"></span></div>
+    <h3 class="concept-title" id="essayConcept"></h3>
+    <img id="essayImg" class="question-img hidden" onerror="this.classList.add('hidden')">
+    <div id="essayPrompt" class="essay-prompt"></div>
+    <div id="essayArea"></div>
+    <div id="essayResult"></div>
+    <div class="actions">
+      <button id="essaySubmitBtn" class="btn-primary" onclick="submitEssayPractice()">제출하고 모범답안 보기</button>
+      <button id="essaySkipBtn" class="btn-secondary" onclick="skipEssay()">넘어가기</button>
+      <button id="essayNextBtn" class="btn-primary hidden" onclick="nextEssay()">다음 →</button>
     </div>
   </div>
 
@@ -858,24 +911,24 @@
 </div>
 
 <script>
-  const API_URL = 'PASTE_NEW_APPS_SCRIPT_WEB_APP_URL_HERE';  // ⚠️ 통합과학용 새 시트에 연결된 Apps Script 배포 URL로 교체
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
   const IMAGE_BASE = 'image/';
   
   // 대단원 아이콘 (문제ID 앞부분 기준)
-  // 2022 개정 통합과학1·2 대단원: bas(과학의 기초)/mat(물질과 규칙성)/sys(시스템과 상호작용)
-  //                              /cha(변화와 다양성)/env(환경과 에너지)/fut(과학과 미래 사회)
+  // 새 방식: atm/ocn/geo/spc/aoi  (옛 방식 A/B/C/D 도 같이 지원)
   const PART_ICON = {
-    'bas': '🔬', 'mat': '🧪', 'sys': '⚙️', 'cha': '🧬', 'env': '🌱', 'fut': '🤖'
+    'atm': '🌫️', 'ocn': '🌊', 'geo': '⛰️', 'spc': '🌌', 'aoi': '🔄', 'essay': '✍️',
+    'A': '🌫️', 'B': '🌊', 'C': '⛰️', 'D': '🌌'
   };
 
   // 문제ID에서 대단원 코드 뽑기
-  //  bas-001 → bas
+  //  atm-001 → atm,  A-01-001 → A
   function partCode(id) {
     const s = String(id || '').trim();
     if (!s) return '';
-    const first = s.split('-')[0].toLowerCase();   // 첫 구획 (예: bas, mat)
-    if (PART_ICON[first]) return first;            // bas/mat/sys/cha/env/fut 매칭
-    return s.charAt(0).toUpperCase();
+    const first = s.split('-')[0].toLowerCase();   // 첫 구획 (예: atm, a)
+    if (PART_ICON[first]) return first;            // atm/ocn/geo/spc 매칭
+    return s.charAt(0).toUpperCase();              // 옛 방식 A/B/C/D
   }
   function partIcon(id) {
     return PART_ICON[partCode(id)] || '📘';
@@ -885,6 +938,7 @@
   let allQuestions = [];
   let allConcepts = [];
   let allOX = [];
+  let allEssay = [];
   let currentSubUnit = null;
   let currentConcept = null;
   let quizQuestions = [];
@@ -897,6 +951,7 @@
   let mockCount = 20;               // 선택된 문제 수 (10/20/30)
   let mockUnits = [];               // 선택된 중단원 이름 목록 (다시 풀기용)
   let currentIsChoice = false;      // 현재 문제가 객관식(합답형)인지
+  let currentIsEssay = false;       // 현재 문제가 서술형인지
   
   async function apiCall(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
@@ -908,7 +963,7 @@
   let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
   
   function showScreen(id) {
-    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -967,12 +1022,14 @@
         allQuestions = (result.questions || []).filter(q => q.문제ID);
         allConcepts = (result.concepts || []);
         allOX = (result.ox || []);
+        allEssay = (result.essay || []);
         
         // 캐시 저장 (다음 로그인 시 즉시 표시용)
         try {
           localStorage.setItem('sj_questions_cache', JSON.stringify(allQuestions));
           localStorage.setItem('sj_concepts_cache', JSON.stringify(allConcepts));
           localStorage.setItem('sj_ox_cache', JSON.stringify(allOX));
+          localStorage.setItem('sj_essay_cache', JSON.stringify(allEssay));
         } catch (e) {}
         
         document.getElementById('studentName').textContent = result.이름;
@@ -991,6 +1048,7 @@
         allQuestions = cachedQuestions;
         try { allConcepts = JSON.parse(localStorage.getItem('sj_concepts_cache') || '[]'); } catch(e) { allConcepts = []; }
         try { allOX = JSON.parse(localStorage.getItem('sj_ox_cache') || '[]'); } catch(e) { allOX = []; }
+        try { allEssay = JSON.parse(localStorage.getItem('sj_essay_cache') || '[]'); } catch(e) { allEssay = []; }
         document.getElementById('studentName').textContent = currentStudent.이름;
         document.getElementById('modeName').textContent = currentStudent.이름;
         showScreen('modeScreen');
@@ -1081,6 +1139,138 @@
   
   function goToConceptMode() {
     showScreen('conceptTypeScreen');
+  }
+  
+  // ===== 서술형 연습하기 =====
+  let essaySeq = [];
+  let essayPos = 0;
+  let currentEssay = null;
+  
+  function goToEssayList() {
+    renderEssayList();
+    showScreen('essayListScreen');
+  }
+  
+  // 소단원 버튼 목록 (시트 입력 순서)
+  function renderEssayList() {
+    const listEl = document.getElementById('essayList');
+    const items = (allEssay || []).filter(e => e.문제 && e.소단원);
+    if (items.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--text-light)">아직 서술형 문제가 없어요</p>';
+      return;
+    }
+    const subs = [];
+    const smap = new Map();
+    items.forEach(e => {
+      const key = e.소단원;
+      let s = smap.get(key);
+      if (!s) { s = { 소단원: key, count: 0 }; smap.set(key, s); subs.push(s); }
+      s.count++;
+    });
+    let html = '';
+    subs.forEach(s => {
+      const safe = s.소단원.replace(/"/g, '&quot;');
+      html += `<button class="passage-item" onclick="startEssaySubunit('${safe}')">
+        <span class="p-title">${s.소단원}</span>
+        <span class="p-blanks">${s.count}문제</span>
+      </button>`;
+    });
+    listEl.innerHTML = html;
+  }
+  
+  // 소단원 클릭 → 그 소단원 서술형을 시트 순서대로 시작
+  function startEssaySubunit(sub) {
+    essaySeq = [];
+    allEssay.forEach((e, idx) => {
+      if (e.문제 && e.소단원 === sub) essaySeq.push(idx);
+    });
+    if (essaySeq.length === 0) return;
+    essayPos = 0;
+    openEssay(essaySeq[0]);
+  }
+  
+  function openEssay(idx) {
+    const e = allEssay[idx];
+    if (!e) return;
+    currentEssay = e;
+    essayPos = essaySeq.indexOf(idx);
+    
+    document.getElementById('essayBreadcrumb').innerHTML = `
+      <span class="breadcrumb-icon">✍️</span><span>서술형</span>
+      ${e.소단원 ? '<span class="breadcrumb-sep">›</span><span>' + e.소단원 + '</span>' : ''}`;
+    document.getElementById('essayProgress').textContent = `${essayPos + 1} / ${essaySeq.length}`;
+    document.getElementById('essayConcept').textContent = '💡 ' + (e.개념 || e.소단원 || '');
+    
+    // 그림 자동 (문제ID 기준)
+    const img = document.getElementById('essayImg');
+    if (e.문제ID) {
+      const folder = partCode(e.문제ID);
+      img.src = IMAGE_BASE + (folder ? folder + '/' : '') + e.문제ID + '.png';
+      img.classList.remove('hidden');
+    } else {
+      img.classList.add('hidden');
+    }
+    
+    document.getElementById('essayPrompt').textContent = e.문제 || '';
+    document.getElementById('essayArea').innerHTML =
+      '<textarea id="essayPracticeInput" class="essay-input" placeholder="여기에 답을 작성하세요..."></textarea>';
+    document.getElementById('essayResult').innerHTML = '';
+    document.getElementById('essaySubmitBtn').classList.remove('hidden');
+    document.getElementById('essaySkipBtn').classList.remove('hidden');
+    document.getElementById('essayNextBtn').classList.add('hidden');
+    
+    showScreen('essayScreen');
+    setTimeout(() => { const t = document.getElementById('essayPracticeInput'); if (t) t.focus(); }, 200);
+  }
+  
+  // 넘어가기 (안 풀고 다음)
+  function skipEssay() {
+    if (essayPos < essaySeq.length - 1) openEssay(essaySeq[essayPos + 1]);
+    else goToEssayList();
+  }
+  
+  function submitEssayPractice() {
+    const e = currentEssay;
+    const ta = document.getElementById('essayPracticeInput');
+    const answer = (ta ? ta.value : '').trim();
+    if (!answer) { if (ta) ta.focus(); return; }
+    if (ta) ta.disabled = true;
+    
+    const model = e.모범답안 || '(모범답안 없음)';
+    document.getElementById('essayResult').innerHTML = `
+      <div class="essay-mine">
+        <div class="essay-label">내가 쓴 답</div>
+        <div class="essay-mine-body">${escapeHtml(answer)}</div>
+      </div>
+      <div class="essay-model">
+        <div class="essay-label" style="color:#0f6e56;">✅ 모범답안</div>
+        <div class="essay-model-body">${escapeHtml(model)}</div>
+        ${e.해설 ? `<div class="explanation">${escapeHtml(e.해설)}</div>` : ''}
+      </div>
+      <div class="essay-note">내 답안은 기록되었어요. 모범답안과 비교해 보세요 :)</div>`;
+    
+    if (currentStudent) {
+      apiCall({
+        action: 'saveEssay',
+        학번: currentStudent.학번,
+        이름: currentStudent.이름,
+        문제ID: e.문제ID || '',
+        개념: e.개념 || e.소단원 || '',
+        학생답안: answer
+      }).catch(err => console.error('서술형 기록 저장 실패:', err));
+    }
+    
+    document.getElementById('essaySubmitBtn').classList.add('hidden');
+    document.getElementById('essaySkipBtn').classList.add('hidden');
+    const nextBtn = document.getElementById('essayNextBtn');
+    nextBtn.textContent = (essayPos < essaySeq.length - 1) ? '다음 →' : '완료';
+    nextBtn.onclick = (essayPos < essaySeq.length - 1) ? nextEssay : goToEssayList;
+    nextBtn.classList.remove('hidden');
+  }
+  
+  function nextEssay() {
+    if (essayPos < essaySeq.length - 1) openEssay(essaySeq[essayPos + 1]);
+    else goToEssayList();
   }
   
   // ===== 나의 학습 =====
@@ -2102,7 +2292,7 @@
       img.src = src;
       img.classList.remove('hidden');
     } else if (q.문제ID) {
-      // 자동 경로: image/[영역폴더]/[문제ID].png  (예: image/bas/bas-001.png)
+      // 자동 경로: image/[영역폴더]/[문제ID].png  (예: image/atm/atm-001.png)
       const folder = partCode(q.문제ID);
       img.src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
       img.classList.remove('hidden');
@@ -2110,14 +2300,26 @@
       img.classList.add('hidden');
     }
     
-    // 문제 유형 판별: 빈칸(기본) vs 객관식(합답형)
+    // 문제 유형 판별: 서술형 / 객관식(합답형) / 빈칸(기본)
     const correctParsed = parseAnswer(q.정답);
     currentIsChoice = isChoiceType(q);
+    currentIsEssay = isEssayType(q);
     
     const area = document.getElementById('quizArea');
     area.innerHTML = '';
     
-    if (currentIsChoice) {
+    if (currentIsEssay) {
+      // ===== 서술형: 자유 입력 + 제출 후 모범답안 =====
+      const badge = document.createElement('div');
+      badge.className = 'essay-badge';
+      badge.textContent = '✍️ 서술형';
+      area.appendChild(badge);
+      const ta = document.createElement('textarea');
+      ta.id = 'essayInput';
+      ta.className = 'essay-input';
+      ta.placeholder = '여기에 답을 작성하세요...';
+      area.appendChild(ta);
+    } else if (currentIsChoice) {
       // ===== 객관식(합답형): ㄱ/ㄴ/ㄷ 조합 보기 버튼 =====
       const wrap = document.createElement('div');
       wrap.className = 'choice-wrap';
@@ -2181,7 +2383,7 @@
     showSolvingButtons();              // 제출·정답 보기·넘어가기 표시, 다음 숨김
     
     setTimeout(() => {
-      const firstInput = document.querySelector('.blank-input');
+      const firstInput = document.querySelector('.blank-input') || document.getElementById('essayInput');
       if (firstInput) firstInput.focus();
     }, 200);
   }
@@ -2190,6 +2392,11 @@
   function isChoiceType(q) {
     const t = String(q.문제유형 || '').trim();
     return t.includes('객관') || t.includes('ㄱㄴㄷ');
+  }
+  
+  // 서술형 여부: 문제유형(F열)에 '서술'이 들어가면 서술형
+  function isEssayType(q) {
+    return String(q.문제유형 || '').trim().includes('서술');
   }
   
   // 정답에 쓰인 보기 글자(ㄱㄴㄷ, 필요시 ㄹㅁ)로 조합 보기 만들기
@@ -2226,6 +2433,7 @@
   
   async function submitAnswer() {
     const q = quizQuestions[currentIndex];
+    if (currentIsEssay) { submitEssay(q); return; }   // 서술형은 별도 처리
     const correctParsed = parseAnswer(q.정답);
     const inputs = document.querySelectorAll('.blank-input');
     
@@ -2369,15 +2577,64 @@
     }).catch(err => console.error('저장 실패:', err));
   }
   
+  // ===== 서술형 제출: 답안 저장 + 모범답안 표시 (채점 없음) =====
+  function submitEssay(q) {
+    const ta = document.getElementById('essayInput');
+    const answer = (ta ? ta.value : '').trim();
+    if (!answer) { if (ta) ta.focus(); return; }   // 빈 답 방지
+    if (ta) ta.disabled = true;
+    
+    document.getElementById('resultMsg').innerHTML = `
+      <div class="essay-mine">
+        <div class="essay-label">내가 쓴 답</div>
+        <div class="essay-mine-body">${escapeHtml(answer)}</div>
+      </div>
+      <div class="essay-model">
+        <div class="essay-label" style="color:#0f6e56;">✅ 모범답안</div>
+        <div class="essay-model-body">${escapeHtml(q.정답 || '(모범답안 없음)')}</div>
+        ${q.해설 ? `<div class="explanation">${q.해설}</div>` : ''}
+      </div>
+      <div class="essay-note">내 답안은 기록되었어요. 모범답안과 비교해 보세요 :)</div>`;
+    
+    // 서술형 답안 전용 시트(EssayResponses)에 기록
+    if (currentStudent) {
+      apiCall({
+        action: 'saveEssay',
+        학번: currentStudent.학번,
+        이름: currentStudent.이름,
+        문제ID: q.문제ID || '',
+        개념: q.관련개념 || q.문제ID || '',
+        학생답안: answer
+      }).catch(err => console.error('서술형 기록 저장 실패:', err));
+    }
+    
+    // 버튼: 제출 숨기고 다음 문제/결과
+    document.getElementById('submitBtn').classList.add('hidden');
+    showNextButton();
+  }
+  
+  // HTML 이스케이프 (서술형 답안 안전 표시)
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+  }
+  
   function showSolvingButtons() {
     document.getElementById('submitBtn').classList.remove('hidden');
-    document.getElementById('revealBtn').classList.remove('hidden');
-    document.getElementById('skipBtn').classList.remove('hidden');
     document.getElementById('nextBtn').classList.add('hidden');
-    // 입력·버튼 다시 활성화 (이전 문제에서 잠갔을 수 있음)
     document.getElementById('submitBtn').disabled = false;
-    document.getElementById('revealBtn').disabled = false;
-    document.getElementById('skipBtn').disabled = false;
+    if (currentIsEssay) {
+      // 서술형: 제출 버튼만 (정답 보기/넘어가기 없음)
+      document.getElementById('submitBtn').textContent = '제출하고 모범답안 보기';
+      document.getElementById('revealBtn').classList.add('hidden');
+      document.getElementById('skipBtn').classList.add('hidden');
+    } else {
+      document.getElementById('submitBtn').textContent = '제출';
+      document.getElementById('revealBtn').classList.remove('hidden');
+      document.getElementById('skipBtn').classList.remove('hidden');
+      document.getElementById('revealBtn').disabled = false;
+      document.getElementById('skipBtn').disabled = false;
+    }
   }
   
   function lockQuestion() {
