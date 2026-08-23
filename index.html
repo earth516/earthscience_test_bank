@@ -196,7 +196,7 @@
       box-shadow: var(--shadow-md);
     }
     .block-title {
-      font-weight: normal;
+      font-weight: bold;
       font-size: 16px;
       color: var(--text);
     }
@@ -910,7 +910,7 @@
 </div>
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxsmVMGmiB9CmQ_smkRWffgMhdPslZl7rYl5eXAbNEEmsz96GCN_XX4PlFEZUwLulFi0A/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbw6_e4198fXcFGGkB7-Ap_RYBtgQWi2RH04sI36rcnu8B4zOGTSEjJ8Qp7DzVjKWWgtMA/exec';
   const IMAGE_BASE = 'image/';
   
   // 대단원 아이콘 (문제ID 앞부분 기준)
@@ -1104,11 +1104,9 @@
     
     subUnits.forEach(su => {
       const count = allQuestions.filter(q => q.소단원 === su.이름).length;
-      const icon = PART_ICON[su.코드] || '📘';
       const block = document.createElement('div');
       block.className = 'block';
       block.innerHTML = `
-        <div style="font-size:32px;">${icon}</div>
         <div class="block-title">${su.이름}</div>
         <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
         <div class="block-count">${count}문제</div>
