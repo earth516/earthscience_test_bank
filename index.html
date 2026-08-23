@@ -124,7 +124,7 @@
     }
     .action-row { display: flex; gap: 10px; margin-top: 12px; }
     .action-row .btn-mock,
-    .action-row .btn-wrong { margin-top: 0; flex: 1; font-size: 14px; padding-left: 10px; padding-right: 10px; }
+    .action-row .btn-wrong { margin-top: 0; flex: 1; font-size: 14px; font-weight: bold; padding-left: 10px; padding-right: 10px; }
     .btn-wrong:hover { filter: brightness(1.05); transform: translateY(-1px); }
     .btn-wrong:disabled { opacity: 0.7; cursor: default; transform: none; }
     .mock-section-title {
@@ -206,6 +206,18 @@
       background: #f1f5f9;
       padding: 3px 10px;
       border-radius: 12px;
+    }
+    /* 소단원 영역: 대분류 섹션 */
+    .subunit-header { color: var(--text-light); margin-top: 22px; }
+    #subUnitGrid { margin-top: 8px; }
+    .cat-label {
+      font-weight: bold; color: var(--text); font-size: 15px;
+      margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    }
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
     }
     /* 경로 (breadcrumb) */
     .breadcrumb {
@@ -832,12 +844,12 @@
     
     <!-- 소단원 영역 -->
     <div id="subUnitArea">
-      <p style="color: var(--text-light);">학습할 소단원을 선택하세요</p>
+      <p class="subunit-header">학습할 소단원을 선택하세요</p>
       <div id="subUnitLoading" class="loading-overlay hidden">
         <div class="spinner"></div>
         📚 문제를 불러오는 중...
       </div>
-      <div id="subUnitGrid" class="grid"></div>
+      <div id="subUnitGrid"></div>
     </div>
   </div>
 
@@ -1078,6 +1090,14 @@
   }
   
   // ===== 소단원 블록 (시트 순서대로) =====
+  // 파트코드 → 3개 대분류
+  const CATEGORY_OF = {
+    'atm': '대기ㆍ해양', 'ocn': '대기ㆍ해양', 'aoi': '대기ㆍ해양',
+    'geo': '지질', 'spc': '우주',
+    'A': '대기ㆍ해양', 'B': '대기ㆍ해양', 'C': '지질', 'D': '우주'
+  };
+  const CATEGORY_ORDER = ['대기ㆍ해양', '지질', '우주'];
+  
   function renderSubUnitGrid() {
     const grid = document.getElementById('subUnitGrid');
     grid.innerHTML = '';
@@ -1102,17 +1122,37 @@
       return;
     }
     
+    // 대분류별로 묶기
+    const buckets = {};
     subUnits.forEach(su => {
-      const count = allQuestions.filter(q => q.소단원 === su.이름).length;
-      const block = document.createElement('div');
-      block.className = 'block';
-      block.innerHTML = `
-        <div class="block-title">${su.이름}</div>
-        <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
-        <div class="block-count">${count}문제</div>
-      `;
-      block.onclick = () => selectSubUnit(su);
-      grid.appendChild(block);
+      const cat = CATEGORY_OF[su.코드] || '기타';
+      (buckets[cat] = buckets[cat] || []).push(su);
+    });
+    const cats = CATEGORY_ORDER.filter(c => buckets[c]).concat(
+      Object.keys(buckets).filter(c => !CATEGORY_ORDER.includes(c))
+    );
+    
+    cats.forEach(cat => {
+      const label = document.createElement('div');
+      label.className = 'cat-label';
+      label.textContent = cat;
+      grid.appendChild(label);
+      
+      const row = document.createElement('div');
+      row.className = 'cat-grid';
+      buckets[cat].forEach(su => {
+        const count = allQuestions.filter(q => q.소단원 === su.이름).length;
+        const block = document.createElement('div');
+        block.className = 'block';
+        block.innerHTML = `
+          <div class="block-count">${count}문제</div>
+          <div class="block-title">${su.이름}</div>
+          <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
+        `;
+        block.onclick = () => selectSubUnit(su);
+        row.appendChild(block);
+      });
+      grid.appendChild(row);
     });
   }
   
