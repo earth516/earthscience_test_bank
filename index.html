@@ -219,6 +219,9 @@
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 12px;
     }
+    .block-concepts {
+      font-size: 11px; color: var(--text-light); line-height: 1.5;
+    }
     /* 경로 (breadcrumb) */
     .breadcrumb {
       display: flex;
@@ -1141,13 +1144,27 @@
       const row = document.createElement('div');
       row.className = 'cat-grid';
       buckets[cat].forEach(su => {
-        const count = allQuestions.filter(q => q.소단원 === su.이름).length;
+        const qsOfSub = allQuestions.filter(q => q.소단원 === su.이름);
+        const count = qsOfSub.length;
+        // 관련개념 목록 (중복 제거, 시트 순서)
+        const seenC = new Set();
+        const concepts = [];
+        qsOfSub.forEach(q => {
+          const c = (q.관련개념 || '').trim();
+          if (c && !seenC.has(c)) { seenC.add(c); concepts.push(c); }
+        });
+        const shown = concepts.slice(0, 3).join(', ');
+        const more = concepts.length > 3 ? ` 외 ${concepts.length - 3}개` : '';
+        const conceptLine = concepts.length
+          ? `<div class="block-concepts">${shown}${more}</div>`
+          : '';
+        
         const block = document.createElement('div');
         block.className = 'block';
         block.innerHTML = `
           <div class="block-count">${count}문제</div>
           <div class="block-title">${su.이름}</div>
-          <div style="font-size:11px; color:var(--text-light);">${su.대단원} › ${su.중단원}</div>
+          ${conceptLine}
         `;
         block.onclick = () => selectSubUnit(su);
         row.appendChild(block);
