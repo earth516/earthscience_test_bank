@@ -222,6 +222,30 @@
     .block-concepts {
       font-size: 11px; color: var(--text-light); line-height: 1.5;
     }
+    /* 시험지 */
+    .paper-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .paper-head { text-align: center; margin: 12px 0 20px; padding-bottom: 12px; border-bottom: 2px solid #333; }
+    .paper-head h1 { font-size: 22px; color: #111; margin: 0 0 8px; }
+    .paper-meta { display: flex; justify-content: center; gap: 20px; font-size: 13px; color: #555; }
+    .paper-item { padding: 14px 0; border-bottom: 1px solid #e5e7eb; break-inside: avoid; }
+    .paper-q { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .paper-no { font-weight: bold; font-size: 16px; }
+    .paper-concept { font-size: 15px; }
+    .paper-diff { font-size: 11px; padding: 1px 8px; border-radius: 8px; background: #eef2ff; color: #4f46e5; }
+    .paper-img { display: block; max-width: 320px; max-height: 220px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; }
+    .paper-opts { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0; }
+    .paper-opt { border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 12px; font-size: 14px; }
+    .paper-blanks { font-size: 15px; color: #333; letter-spacing: 1px; margin: 6px 0; }
+    .paper-ans { background: #f8fafc; border-left: 3px solid #22c55e; padding: 8px 12px; margin-top: 8px; font-size: 14px; border-radius: 0 6px 6px 0; }
+    .paper-ans-label { font-weight: bold; color: #15803d; margin-right: 6px; }
+    .paper-exp { color: #555; font-size: 13px; margin-top: 4px; }
+    @media print {
+      body { background: white !important; }
+      .no-print { display: none !important; }
+      #paperScreen { box-shadow: none; border: none; margin: 0; padding: 0; max-width: 100%; }
+      .card { box-shadow: none !important; }
+      .paper-item { border-bottom: 1px solid #ccc; }
+    }
     /* 경로 (breadcrumb) */
     .breadcrumb {
       display: flex;
@@ -834,10 +858,7 @@
       <button id="searchClearBtn" class="search-clear hidden" onclick="clearSearch()">✕</button>
     </div>
     
-    <div class="action-row">
-      <button class="btn-mock" onclick="openMockSetup()">📝 모의고사 만들기</button>
-      <button class="btn-wrong" id="wrongBtn" onclick="startWrongQuiz()">❌ 틀린 문제 다시 풀기</button>
-    </div>
+    <button class="btn-mock" onclick="openMockSetup()">📝 모의고사 만들기</button>
     
     <!-- 검색 결과 영역 -->
     <div id="searchResultArea" class="hidden">
@@ -886,6 +907,19 @@
 
     <div class="mock-info" id="mockInfo"></div>
     <button class="btn-primary" id="mockStartBtn" onclick="startMockExam()">모의고사 시작 🚀</button>
+    <button class="btn-secondary" id="mockPdfBtn" onclick="openExamPaper()" style="width:100%; margin-top:10px;">📄 시험지 PDF로 저장</button>
+  </div>
+
+  <!-- 시험지(인쇄/PDF용) -->
+  <div id="paperScreen" class="card hidden">
+    <div class="paper-toolbar no-print">
+      <button class="btn-back" onclick="openMockSetup()">← 설정으로</button>
+      <button class="btn-primary" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+    </div>
+    <p class="no-print" style="color:var(--text-light); font-size:13px; margin:8px 0 0;">
+      인쇄 창에서 <strong>대상을 'PDF로 저장'</strong>으로 고르면 파일로 저장돼요.
+    </p>
+    <div id="paperBody"></div>
   </div>
 
   <!-- 문제 풀이 -->
@@ -977,7 +1011,7 @@
   let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
   
   function showScreen(id) {
-    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'paperScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2060,7 +2094,6 @@
   }
   
   function retryQuiz() {
-    if (isWrongQuiz) { startWrongQuiz(); return; }
     if (isMock) { runMock(mockUnits, mockCount); return; }
     if (currentSubUnit && currentConcept) startQuiz(currentConcept);
     else goToSubUnitScreen();
@@ -2209,6 +2242,67 @@
     runMock(checked, mockCount);
   }
   
+  // ===== 시험지 PDF =====
+  function openExamPaper() {
+    const checked = getCheckedMockUnits();
+    if (checked.length === 0) { alert('범위를 하나 이상 선택해 주세요'); return; }
+    const pool = poolFromUnits(checked);
+    if (pool.length === 0) { alert('출제할 문제가 없어요'); return; }
+    const items = orderByDifficulty(shuffle(pool).slice(0, mockCount));
+    
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}`;
+    
+    let html = `
+      <div class="paper-head">
+        <h1>지구과학 문제 · 정답지</h1>
+        <div class="paper-meta">
+          <span>이름 : ______________</span>
+          <span>총 ${items.length}문제</span>
+          <span>${dateStr}</span>
+        </div>
+      </div>`;
+    
+    items.forEach((q, i) => {
+      const diff = String(q.난이도 || '').trim();
+      const diffTag = diff ? `<span class="paper-diff">${diff}</span>` : '';
+      // 그림
+      let imgTag = '';
+      if (q.문제ID) {
+        const folder = partCode(q.문제ID);
+        const src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
+        imgTag = `<img class="paper-img" src="${src}" onerror="this.style.display='none'">`;
+      }
+      // 문제 본문 (보기/빈칸)
+      let bodyTag = '';
+      if (isChoiceType(q)) {
+        const opts = getChoiceOptions(q.정답).map(o => `<span class="paper-opt">${o}</span>`).join('');
+        bodyTag = `<div class="paper-opts">${opts}</div>`;
+      } else {
+        const n = parseAnswer(q.정답).length || 1;
+        bodyTag = `<div class="paper-blanks">${'( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) '.repeat(n)}</div>`;
+      }
+      
+      html += `
+        <div class="paper-item">
+          <div class="paper-q">
+            <span class="paper-no">${i + 1}.</span>
+            <span class="paper-concept">${q.관련개념 || ''}</span>
+            ${diffTag}
+          </div>
+          ${imgTag}
+          ${bodyTag}
+          <div class="paper-ans">
+            <span class="paper-ans-label">정답</span> ${escapeHtml(String(q.정답 || '').replace(/\|/g, ' , ').replace(/\//g, ' 또는 '))}
+            ${q.해설 ? `<div class="paper-exp">해설 · ${escapeHtml(q.해설)}</div>` : ''}
+          </div>
+        </div>`;
+    });
+    
+    document.getElementById('paperBody').innerHTML = html;
+    showScreen('paperScreen');
+  }
+  
   // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
   function runMock(units, count) {
     const pool = poolFromUnits(units);
@@ -2237,51 +2331,6 @@
   }
   
   // ===== 틀린 문제 다시 풀기 =====
-  async function startWrongQuiz() {
-    const btn = document.getElementById('wrongBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
-    try {
-      const res = await apiCall({ action: 'getMyStats', studentId: currentStudent.학번 });
-      // 방식 2: 문제별 최근 결과가 X인 것만 (다시 맞힌 건 자동 제외)
-      const latest = {};
-      (res.responses || []).forEach(r => {
-        if (r.문제ID) latest[r.문제ID] = String(r.정답여부).toUpperCase() === 'O';
-      });
-      const wrongIds = Object.keys(latest).filter(id => !latest[id]);
-      // 현재 문제 은행에 있는 것만
-      const qmap = {};
-      allQuestions.forEach(q => { if (q.문제ID) qmap[q.문제ID] = q; });
-      const pool = wrongIds.map(id => qmap[id]).filter(Boolean);
-      
-      if (pool.length === 0) {
-        alert('다시 풀 틀린 문제가 없어요! 🎉');
-        return;
-      }
-      
-      isMock = false;
-      isWrongQuiz = true;
-      currentConcept = null;
-      quizQuestions = orderByDifficulty(pool);   // 저→중→고
-      currentIndex = 0;
-      correctCount = 0;
-      
-      document.getElementById('quizBackBtn').textContent = '← 뒤로';
-      document.getElementById('quizBreadcrumb').innerHTML = `
-        <span class="breadcrumb-icon">❌</span>
-        <span>틀린 문제 복습</span>
-        <span class="breadcrumb-sep">›</span>
-        <span>${quizQuestions.length}문제</span>
-      `;
-      
-      showScreen('quizScreen');
-      showQuestion();
-    } catch (e) {
-      alert('기록을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '❌ 틀린 문제 다시 풀기'; }
-    }
-  }
-  
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
