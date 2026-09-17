@@ -246,6 +246,31 @@
       .card { box-shadow: none !important; }
       .paper-item { border-bottom: 1px solid #ccc; }
     }
+    /* 모의고사 나열형 */
+    .mx-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .mx-summary { font-size: 14px; color: var(--text-light); }
+    .mx-score { color: var(--primary); }
+    .mx-item { padding: 16px 0; border-bottom: 1px solid #eef2f7; }
+    .mx-q { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .mx-no { font-weight: bold; font-size: 16px; }
+    .mx-concept { font-size: 15px; }
+    .mx-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .mx-choice { border: 2px solid #e5e7eb; border-radius: 8px; padding: 6px 14px; background: white; font-size: 14px; cursor: pointer; }
+    .mx-choice.on { border-color: var(--primary); background: #eef2ff; }
+    .mx-choice.mx-ok { border-color: #15803d; background: #dcfce7; color: #15803d; }
+    .mx-choice.mx-no { border-color: #b91c1c; background: #fee2e2; color: #b91c1c; }
+    .mx-blanks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .mx-blabel { color: var(--text-light); font-size: 13px; }
+    .mx-blank { border: none; border-bottom: 2px solid var(--primary); background: #f8fafc; border-radius: 6px 6px 0 0; padding: 6px 10px; font-size: 15px; min-width: 90px; }
+    .mx-blank.mx-ok { background: #dcfce7; border-bottom-color: #15803d; color: #15803d; }
+    .mx-blank.mx-no { background: #fee2e2; border-bottom-color: #b91c1c; color: #b91c1c; }
+    .mx-result { margin-top: 10px; }
+    .mx-verdict { display: inline-block; font-size: 13px; font-weight: bold; padding: 2px 10px; border-radius: 8px; margin-bottom: 6px; }
+    .mx-verdict.v-ok { background: #dcfce7; color: #15803d; }
+    .mx-verdict.v-no { background: #fee2e2; color: #b91c1c; }
+    .mx-ansline { font-size: 14px; }
+    .mx-exp { font-size: 13px; color: var(--text-light); margin-top: 4px; white-space: pre-line; }
+    .mx-actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
     /* 경로 (breadcrumb) */
     .breadcrumb {
       display: flex;
@@ -922,6 +947,21 @@
     <div id="paperBody"></div>
   </div>
 
+  <!-- 모의고사 (나열형) -->
+  <div id="mockExamScreen" class="card hidden">
+    <button class="btn-back" onclick="openMockSetup()">← 모의고사 설정으로</button>
+    <div class="mx-header">
+      <h2>📝 모의고사</h2>
+      <div id="mxSummary" class="mx-summary"></div>
+    </div>
+    <div id="mxBody"></div>
+    <div class="mx-actions">
+      <button id="mxSubmitBtn" class="btn-primary" onclick="gradeMockExam()">제출하고 채점하기</button>
+      <button id="mxRetryBtn" class="btn-secondary hidden" onclick="retryQuiz()">다시 풀기</button>
+      <button id="mxHomeBtn" class="btn-secondary hidden" onclick="openMockSetup()">설정으로</button>
+    </div>
+  </div>
+
   <!-- 문제 풀이 -->
   <div id="quizScreen" class="card hidden">
     <button class="btn-back" id="quizBackBtn" onclick="quitQuiz()">← 개념 선택으로</button>
@@ -1011,7 +1051,7 @@
   let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
   
   function showScreen(id) {
-    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'paperScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'paperScreen', 'mockExamScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2303,31 +2343,127 @@
     showScreen('paperScreen');
   }
   
-  // 실제 모의고사 구성 + 시작 (다시 풀기도 이걸 재사용)
+  // 모의고사(나열형) 구성 + 표시
+  let mockExamQuestions = [];
   function runMock(units, count) {
     const pool = poolFromUnits(units);
     if (pool.length === 0) return;
     
     isMock = true;
     isWrongQuiz = false;
-    mockUnits = units.slice();       // 선택된 (소단원+개념) 복합키 목록
+    mockUnits = units.slice();
     mockCount = count;
     currentConcept = null;
     
-    quizQuestions = orderByDifficulty(shuffle(pool).slice(0, count));   // 랜덤 N개 → 저→중→고 정렬
-    currentIndex = 0;
-    correctCount = 0;
+    mockExamQuestions = orderByDifficulty(shuffle(pool).slice(0, count));
     
-    document.getElementById('quizBackBtn').textContent = '← 모의고사 설정으로';
-    document.getElementById('quizBreadcrumb').innerHTML = `
-      <span class="breadcrumb-icon">📝</span>
-      <span>모의고사</span>
-      <span class="breadcrumb-sep">›</span>
-      <span>${quizQuestions.length}문제</span>
-    `;
+    const total = mockExamQuestions.length;
+    document.getElementById('mxSummary').textContent = `총 ${total}문제`;
     
-    showScreen('quizScreen');
-    showQuestion();
+    let html = '';
+    mockExamQuestions.forEach((q, i) => {
+      const diff = String(q.난이도 || '').trim();
+      const diffTag = diff ? `<span class="paper-diff">${diff}</span>` : '';
+      let imgTag = '';
+      if (q.문제ID) {
+        const folder = partCode(q.문제ID);
+        const src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
+        imgTag = `<img class="paper-img" src="${src}" onerror="this.style.display='none'">`;
+      }
+      // 입력부
+      let inputTag = '';
+      if (isChoiceType(q)) {
+        const opts = getChoiceOptions(q.정답).map(o =>
+          `<button type="button" class="mx-choice" data-i="${i}" data-val="${o}" onclick="pickMxChoice(this)">${o}</button>`
+        ).join('');
+        inputTag = `<div class="mx-choices">${opts}</div>`;
+      } else {
+        const n = parseAnswer(q.정답).length || 1;
+        let boxes = '';
+        for (let b = 0; b < n; b++) {
+          const label = n > 1 ? `<span class="mx-blabel">${['①','②','③','④','⑤'][b] || (b+1)}</span>` : '';
+          boxes += `${label}<input type="text" class="mx-blank" data-i="${i}" data-b="${b}" autocomplete="off">`;
+        }
+        inputTag = `<div class="mx-blanks">${boxes}</div>`;
+      }
+      
+      html += `
+        <div class="mx-item" id="mx-item-${i}">
+          <div class="mx-q"><span class="mx-no">${i + 1}.</span><span class="mx-concept">${q.관련개념 || ''}</span>${diffTag}</div>
+          ${imgTag}
+          ${inputTag}
+          <div class="mx-result" id="mxr-${i}"></div>
+        </div>`;
+    });
+    document.getElementById('mxBody').innerHTML = html;
+    
+    // 버튼 상태 초기화
+    document.getElementById('mxSubmitBtn').classList.remove('hidden');
+    document.getElementById('mxSubmitBtn').disabled = false;
+    document.getElementById('mxRetryBtn').classList.add('hidden');
+    document.getElementById('mxHomeBtn').classList.add('hidden');
+    
+    showScreen('mockExamScreen');
+  }
+  
+  // 객관식 보기 선택 (한 문제 내 하나만)
+  function pickMxChoice(btn) {
+    const i = btn.dataset.i;
+    document.querySelectorAll(`.mx-choice[data-i="${i}"]`).forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+  
+  // 채점 (마지막에 한꺼번에)
+  function gradeMockExam() {
+    let correct = 0;
+    mockExamQuestions.forEach((q, i) => {
+      const parsed = parseAnswer(q.정답);
+      let studentAns = [];
+      let ok = false;
+      
+      if (isChoiceType(q)) {
+        const sel = document.querySelector(`.mx-choice[data-i="${i}"].on`);
+        const val = sel ? sel.dataset.val : '';
+        studentAns = [val || '(무응답)'];
+        ok = val ? checkBlank(val, parsed[0] || []) : false;
+        // 보기 색칠
+        document.querySelectorAll(`.mx-choice[data-i="${i}"]`).forEach(b => {
+          b.disabled = true;
+          if (b.classList.contains('on')) b.classList.add(ok ? 'mx-ok' : 'mx-no');
+        });
+      } else {
+        ok = true;
+        parsed.forEach((cands, b) => {
+          const inp = document.querySelector(`.mx-blank[data-i="${i}"][data-b="${b}"]`);
+          const val = inp ? inp.value.trim() : '';
+          studentAns.push(val || '(빈칸)');
+          const blankOk = checkBlank(val, cands);
+          if (!blankOk) ok = false;
+          if (inp) { inp.disabled = true; inp.classList.add(blankOk ? 'mx-ok' : 'mx-no'); }
+        });
+      }
+      
+      if (ok) correct++;
+      
+      // 문제별 정답·해설
+      const ansText = String(q.정답 || '').replace(/\|/g, ' , ').replace(/\//g, ' 또는 ');
+      document.getElementById(`mxr-${i}`).innerHTML = `
+        <div class="mx-verdict ${ok ? 'v-ok' : 'v-no'}">${ok ? '✓ 정답' : '✗ 오답'}</div>
+        <div class="mx-ansline"><b>정답</b> ${escapeHtml(ansText)}</div>
+        ${q.해설 ? `<div class="mx-exp">해설 · ${escapeHtml(q.해설)}</div>` : ''}`;
+      
+      // 기록 저장
+      saveResult(q, studentAns, ok);
+    });
+    
+    const total = mockExamQuestions.length;
+    const pct = total ? Math.round(correct / total * 100) : 0;
+    document.getElementById('mxSummary').innerHTML =
+      `<span class="mx-score">${total}문제 중 <strong>${correct}개</strong> 정답 · ${pct}%</span>`;
+    document.getElementById('mxSubmitBtn').classList.add('hidden');
+    document.getElementById('mxRetryBtn').classList.remove('hidden');
+    document.getElementById('mxHomeBtn').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   
   // ===== 틀린 문제 다시 풀기 =====
