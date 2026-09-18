@@ -957,8 +957,7 @@
     <div id="mxBody"></div>
     <div class="mx-actions">
       <button id="mxSubmitBtn" class="btn-primary" onclick="gradeMockExam()">제출하고 채점하기</button>
-      <button id="mxRetryBtn" class="btn-secondary hidden" onclick="retryQuiz()">다시 풀기</button>
-      <button id="mxHomeBtn" class="btn-secondary hidden" onclick="openMockSetup()">설정으로</button>
+      <button id="mxHomeBtn" class="btn-secondary hidden" onclick="openMockSetup()">모의고사 설정으로</button>
     </div>
   </div>
 
@@ -2400,7 +2399,6 @@
     // 버튼 상태 초기화
     document.getElementById('mxSubmitBtn').classList.remove('hidden');
     document.getElementById('mxSubmitBtn').disabled = false;
-    document.getElementById('mxRetryBtn').classList.add('hidden');
     document.getElementById('mxHomeBtn').classList.add('hidden');
     
     showScreen('mockExamScreen');
@@ -2461,7 +2459,6 @@
     document.getElementById('mxSummary').innerHTML =
       `<span class="mx-score">${total}문제 중 <strong>${correct}개</strong> 정답 · ${pct}%</span>`;
     document.getElementById('mxSubmitBtn').classList.add('hidden');
-    document.getElementById('mxRetryBtn').classList.remove('hidden');
     document.getElementById('mxHomeBtn').classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
