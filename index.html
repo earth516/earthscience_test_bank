@@ -238,6 +238,15 @@
     .paper-blanks { font-size: 15px; color: #333; letter-spacing: 1px; margin: 6px 0; }
     .paper-ans { background: #f8fafc; border-left: 3px solid #22c55e; padding: 8px 12px; margin-top: 8px; font-size: 14px; border-radius: 0 6px 6px 0; }
     .paper-ans-label { font-weight: bold; color: #15803d; margin-right: 6px; }
+    /* 해설지 (다음 페이지) */
+    .answer-sheet { margin-top: 28px; padding-top: 20px; border-top: 3px double #333; }
+    .ans-item { padding: 9px 0; border-bottom: 1px dashed #e5e7eb; }
+    .ans-no { font-weight: bold; margin-right: 8px; }
+    .ans-val { color: #15803d; font-weight: bold; }
+    .ans-exp { font-size: 13px; color: #555; margin-top: 3px; padding-left: 20px; }
+    @media print {
+      .answer-sheet { break-before: page; page-break-before: always; margin-top: 0; border-top: none; }
+    }
     .paper-exp { color: #555; font-size: 13px; margin-top: 4px; }
     @media print {
       body { background: white !important; }
@@ -2292,9 +2301,10 @@
     const today = new Date();
     const dateStr = `${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}`;
     
-    let html = `
+    // ── 문제지 ──
+    let paper = `
       <div class="paper-head">
-        <h1>지구과학 문제 · 정답지</h1>
+        <h1>지구과학 모의고사 — 문제지</h1>
         <div class="paper-meta">
           <span>이름 : ______________</span>
           <span>총 ${items.length}문제</span>
@@ -2305,14 +2315,12 @@
     items.forEach((q, i) => {
       const diff = String(q.난이도 || '').trim();
       const diffTag = diff ? `<span class="paper-diff">${diff}</span>` : '';
-      // 그림
       let imgTag = '';
       if (q.문제ID) {
         const folder = partCode(q.문제ID);
         const src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
         imgTag = `<img class="paper-img" src="${src}" onerror="this.style.display='none'">`;
       }
-      // 문제 본문 (보기/빈칸)
       let bodyTag = '';
       if (isChoiceType(q)) {
         const opts = getChoiceOptions(q.정답).map(o => `<span class="paper-opt">${o}</span>`).join('');
@@ -2321,8 +2329,7 @@
         const n = parseAnswer(q.정답).length || 1;
         bodyTag = `<div class="paper-blanks">${'( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) '.repeat(n)}</div>`;
       }
-      
-      html += `
+      paper += `
         <div class="paper-item">
           <div class="paper-q">
             <span class="paper-no">${i + 1}.</span>
@@ -2331,14 +2338,28 @@
           </div>
           ${imgTag}
           ${bodyTag}
-          <div class="paper-ans">
-            <span class="paper-ans-label">정답</span> ${escapeHtml(String(q.정답 || '').replace(/\|/g, ' , ').replace(/\//g, ' 또는 '))}
-            ${q.해설 ? `<div class="paper-exp">해설 · ${escapeHtml(q.해설)}</div>` : ''}
-          </div>
         </div>`;
     });
     
-    document.getElementById('paperBody').innerHTML = html;
+    // ── 해설지 (다음 페이지) ──
+    let answer = `
+      <div class="answer-sheet">
+        <div class="paper-head">
+          <h1>지구과학 모의고사 — 정답 · 해설</h1>
+          <div class="paper-meta"><span>총 ${items.length}문제</span><span>${dateStr}</span></div>
+        </div>`;
+    items.forEach((q, i) => {
+      const ansText = String(q.정답 || '').replace(/\|/g, ' , ').replace(/\//g, ' 또는 ');
+      answer += `
+        <div class="ans-item">
+          <span class="ans-no">${i + 1}.</span>
+          <span class="ans-val">${escapeHtml(ansText)}</span>
+          ${q.해설 ? `<div class="ans-exp">${escapeHtml(q.해설)}</div>` : ''}
+        </div>`;
+    });
+    answer += `</div>`;
+    
+    document.getElementById('paperBody').innerHTML = paper + answer;
     showScreen('paperScreen');
   }
   
