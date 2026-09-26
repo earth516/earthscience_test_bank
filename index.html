@@ -496,7 +496,7 @@
     .draw-toggle-btn.on { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
     .draw-tools { display: flex; gap: 6px; }
     .draw-tool-btn {
-      font-size: 11px; padding: 5px 9px; border-radius: 8px;
+      font-size: 11px; padding: 4px 8px; border-radius: 8px;
       border: 1px solid #e5e7eb; background: white;
     }
     .draw-tool-btn.on { border-color: var(--primary); background: #eef2ff; }
@@ -1058,8 +1058,8 @@
           <button type="button" class="draw-color-btn" data-color="#16a34a" style="background:#16a34a;" onclick="setDrawColor('#16a34a', this)" aria-label="초록"></button>
           <button type="button" class="draw-color-btn" data-color="#1e293b" style="background:#1e293b;" onclick="setDrawColor('#1e293b', this)" aria-label="검정"></button>
         </div>
-        <button type="button" id="drawEraserBtn" class="draw-tool-btn" onclick="setDrawMode('eraser')">🧹 지우개</button>
-        <button type="button" class="draw-tool-btn" onclick="clearDrawing()">🗑️ 지우기</button>
+        <button type="button" id="drawEraserBtn" class="draw-tool-btn" onclick="setDrawMode('eraser')">지우개</button>
+        <button type="button" class="draw-tool-btn" onclick="clearDrawing()">지우기</button>
       </div>
     </div>
     <div id="quizArea"></div>
@@ -1122,6 +1122,7 @@
   let correctCount = 0;
   let wrongAttempts = 0;              // 현재 문제 오답 제출 횟수
   const REVEAL_AFTER = 3;            // 오답 N번이면 자동으로 정답 공개
+  const AUTO_FOCUS_INPUT = false;    // 문제 뜨자마자 입력칸에 자동 포커스(→모바일 키보드 자동 표시) 여부. true로 바꾸면 켜짐
   let isMock = false;               // 모의고사 모드 여부
   let isWrongQuiz = false;          // 틀린 문제 복습 모드 여부
   let mockCount = 20;               // 선택된 문제 수 (10/20/30)
@@ -1436,7 +1437,9 @@
     document.getElementById('essayNextBtn').classList.add('hidden');
     
     showScreen('essayScreen');
-    setTimeout(() => { const t = document.getElementById('essayPracticeInput'); if (t) t.focus(); }, 200);
+    if (AUTO_FOCUS_INPUT) {
+      setTimeout(() => { const t = document.getElementById('essayPracticeInput'); if (t) t.focus(); }, 200);
+    }
   }
   
   // 넘어가기 (안 풀고 다음)
@@ -1779,11 +1782,13 @@
       }
     });
     
-    // 첫 빈칸에 자동 포커스
-    setTimeout(() => {
-      const first = box.querySelector('.passage-blank');
-      if (first) first.focus();
-    }, 150);
+    // 첫 빈칸에 자동 포커스 (AUTO_FOCUS_INPUT이 true일 때만)
+    if (AUTO_FOCUS_INPUT) {
+      setTimeout(() => {
+        const first = box.querySelector('.passage-blank');
+        if (first) first.focus();
+      }, 150);
+    }
   }
   
   // 채점
@@ -2755,7 +2760,7 @@
     const tools = document.getElementById('drawTools');
     drawState.on = !drawState.on;
     canvas.style.pointerEvents = drawState.on ? 'auto' : 'none';
-    btn.textContent = drawState.on ? '❌ 필기 끄기' : '✏️ 필기 켜기';
+    btn.textContent = drawState.on ? '필기 끄기' : '✏️ 필기 켜기';
     btn.classList.toggle('on', drawState.on);
     tools.classList.toggle('hidden', !drawState.on);
   }
@@ -2943,10 +2948,12 @@
     document.getElementById('resultMsg').innerHTML = '';
     showSolvingButtons();              // 제출·정답 보기·넘어가기 표시, 다음 숨김
     
-    setTimeout(() => {
-      const firstInput = document.querySelector('.blank-input') || document.getElementById('essayInput');
-      if (firstInput) firstInput.focus();
-    }, 200);
+    if (AUTO_FOCUS_INPUT) {
+      setTimeout(() => {
+        const firstInput = document.querySelector('.blank-input') || document.getElementById('essayInput');
+        if (firstInput) firstInput.focus();
+      }, 200);
+    }
   }
   
   // 객관식 여부: 문제유형(F열)에 '객관' 또는 'ㄱㄴㄷ'가 들어가면 객관식
