@@ -464,11 +464,42 @@
     .ox-picked-ok { border-color: #15803d !important; background: #dcfce7 !important; opacity: 1 !important; }
     .ox-picked-no { border-color: #b91c1c !important; background: #fee2e2 !important; opacity: 1 !important; }
     .question-img {
+      display: block;
       max-width: 100%;
       border-radius: 12px;
-      margin: 16px 0;
       border: 1px solid var(--border);
+      user-select: none;
+      -webkit-user-drag: none;
     }
+    /* 문제 그림 위 필기(캔버스 오버레이) */
+    .question-img-wrap {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      margin: 16px 0;
+    }
+    .draw-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none;
+      border-radius: 12px;
+    }
+    .draw-toolbar-row {
+      display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+      margin: -8px 0 12px;
+    }
+    .draw-toggle-btn {
+      font-size: 13px; padding: 7px 14px; border-radius: 10px;
+      border: 1px solid #e5e7eb; background: #f8fafc; color: var(--text-light);
+    }
+    .draw-toggle-btn.on { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+    .draw-tools { display: flex; gap: 6px; }
+    .draw-tool-btn {
+      font-size: 12px; padding: 6px 10px; border-radius: 8px;
+      border: 1px solid #e5e7eb; background: white;
+    }
+    .draw-tool-btn.on { border-color: var(--primary); background: #eef2ff; }
     /* 빈칸 입력 영역 */
     .blank-inputs {
       display: flex;
@@ -1009,18 +1040,20 @@
     <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
     <span id="difficultyBadge" class="diff-badge hidden"></span>
     <h3 class="concept-title" id="conceptText"></h3>
-    <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
+    <div id="questionImgWrap" class="question-img-wrap hidden">
+      <img id="questionImg" class="question-img" onerror="this.parentElement.classList.add('hidden')" onload="setupImageDraw()">
+      <canvas id="drawCanvas" class="draw-canvas" style="pointer-events:none;"></canvas>
+    </div>
+    <div class="draw-toolbar-row" id="drawToolbarRow" style="display:none;">
+      <button type="button" id="drawToggleBtn" class="draw-toggle-btn" onclick="toggleDrawMode()">✏️ 필기 켜기</button>
+      <div id="drawTools" class="draw-tools hidden">
+        <button type="button" id="drawPenBtn" class="draw-tool-btn on" onclick="setDrawMode('pen')">✏️ 펜</button>
+        <button type="button" id="drawEraserBtn" class="draw-tool-btn" onclick="setDrawMode('eraser')">🧹 지우개</button>
+        <button type="button" class="draw-tool-btn" onclick="clearDrawing()">🗑️ 지우기</button>
+      </div>
+    </div>
     <div id="quizArea"></div>
     <div id="resultMsg"></div>
-    <button type="button" class="scratch-toggle" onclick="toggleScratchpad('quiz')">✏️ 필기장 펴기</button>
-    <div id="scratchWrap-quiz" class="scratch-wrap hidden">
-      <div class="scratch-tools">
-        <button type="button" onclick="setScratchMode('quiz','pen')">✏️ 펜</button>
-        <button type="button" onclick="setScratchMode('quiz','eraser')">🧹 지우개</button>
-        <button type="button" onclick="clearScratchpad('quiz')">🗑️ 전체 지우기</button>
-      </div>
-      <canvas id="scratchCanvas-quiz" class="scratch-canvas"></canvas>
-    </div>
     <div class="actions" id="quizActions">
       <button id="submitBtn" class="btn-primary" onclick="submitAnswer()">제출</button>
       <button id="revealBtn" class="btn-secondary" onclick="revealAnswer()">정답 보기</button>
@@ -2620,6 +2653,132 @@
     if (st && st.ctx && canvas) st.ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
   
+  // ===== 문제 그림 위 필기 (개념별 문제 풀이 전용, 저장 안 함) =====
+  // 그림 위에 캔버스를 겹쳐서 직접 표시. 이미지 로드 타이밍 방어 + 리사이즈 대응 + 이벤트 중복 방지.
+  let drawState = null;        // { ctx, drawing, on, mode }
+  
+  function setupImageDraw() {
+    const img = document.getElementById('questionImg');
+    const canvas = document.getElementById('drawCanvas');
+    const wrap = document.getElementById('questionImgWrap');
+    const toolbarRow = document.getElementById('drawToolbarRow');
+    if (!img || !canvas || !wrap) return;
+    
+    // 이전 문제의 리스너가 남아있으면 정리 (같은 캔버스를 재사용하므로 중복 방지)
+    if (drawState && drawState._cleanup) drawState._cleanup();
+    
+    // 이미지 해상도가 아직 안 잡혔으면 다음 프레임에 재시도
+    const naturalW = img.naturalWidth;
+    const naturalH = img.naturalHeight;
+    if (!naturalW || !naturalH) {
+      requestAnimationFrame(setupImageDraw);
+      return;
+    }
+    
+    canvas.width = naturalW;
+    canvas.height = naturalH;
+    const ctx = canvas.getContext('2d');
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    drawState = { ctx, drawing: false, on: false, mode: 'pen' };
+    canvas.style.pointerEvents = 'none';
+    toolbarRow.style.display = 'flex';
+    document.getElementById('drawToggleBtn').textContent = '✏️ 필기 켜기';
+    document.getElementById('drawToggleBtn').classList.remove('on');
+    document.getElementById('drawTools').classList.add('hidden');
+    setDrawMode('pen');
+    
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const t = (e.touches && e.touches[0]) || e;
+      return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
+    };
+    const lineWidthFor = (mode) => {
+      const rect = canvas.getBoundingClientRect();
+      const shownWidth = rect.width || img.clientWidth || naturalW;
+      const ratio = canvas.width / shownWidth;
+      return ratio * (mode === 'eraser' ? 22 : 3);
+    };
+    const down = (e) => {
+      if (!drawState.on) return;
+      e.preventDefault();
+      const p = getPos(e);
+      drawState.drawing = true;
+      drawState.ctx.beginPath();
+      drawState.ctx.moveTo(p.x, p.y);
+    };
+    const move = (e) => {
+      if (!drawState.drawing) return;
+      e.preventDefault();
+      const p = getPos(e);
+      drawState.ctx.lineWidth = lineWidthFor(drawState.mode);
+      if (drawState.mode === 'eraser') {
+        drawState.ctx.globalCompositeOperation = 'destination-out';
+        drawState.ctx.strokeStyle = 'rgba(0,0,0,1)';
+      } else {
+        drawState.ctx.globalCompositeOperation = 'source-over';
+        drawState.ctx.strokeStyle = '#dc2626';
+      }
+      drawState.ctx.lineTo(p.x, p.y);
+      drawState.ctx.stroke();
+    };
+    const up = () => { drawState.drawing = false; };
+    
+    canvas.addEventListener('mousedown', down);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', up);
+    canvas.addEventListener('mouseleave', up);
+    canvas.addEventListener('touchstart', down, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', up);
+    canvas.addEventListener('touchcancel', up);
+    
+    drawState._cleanup = () => {
+      canvas.removeEventListener('mousedown', down);
+      canvas.removeEventListener('mousemove', move);
+      canvas.removeEventListener('mouseup', up);
+      canvas.removeEventListener('mouseleave', up);
+      canvas.removeEventListener('touchstart', down);
+      canvas.removeEventListener('touchmove', move);
+      canvas.removeEventListener('touchend', up);
+      canvas.removeEventListener('touchcancel', up);
+    };
+  }
+  
+  function toggleDrawMode() {
+    if (!drawState) return;
+    const canvas = document.getElementById('drawCanvas');
+    const btn = document.getElementById('drawToggleBtn');
+    const tools = document.getElementById('drawTools');
+    drawState.on = !drawState.on;
+    canvas.style.pointerEvents = drawState.on ? 'auto' : 'none';
+    btn.textContent = drawState.on ? '❌ 필기 끄기' : '✏️ 필기 켜기';
+    btn.classList.toggle('on', drawState.on);
+    tools.classList.toggle('hidden', !drawState.on);
+  }
+  
+  function setDrawMode(mode) {
+    if (!drawState) return;
+    drawState.mode = mode;
+    document.getElementById('drawPenBtn').classList.toggle('on', mode === 'pen');
+    document.getElementById('drawEraserBtn').classList.toggle('on', mode === 'eraser');
+  }
+  
+  function clearDrawing() {
+    const canvas = document.getElementById('drawCanvas');
+    if (drawState && drawState.ctx && canvas) drawState.ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  // 그림이 없는 문제로 넘어갈 때 필기 도구줄도 숨기기
+  function resetImageDraw() {
+    const toolbarRow = document.getElementById('drawToolbarRow');
+    if (toolbarRow) toolbarRow.style.display = 'none';
+    if (drawState && drawState._cleanup) { drawState._cleanup(); drawState = null; }
+  }
+  
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -2654,7 +2813,7 @@
     const q = quizQuestions[currentIndex];
     const total = quizQuestions.length;
     const num = currentIndex + 1;
-    resetScratchpad('quiz');
+    resetImageDraw();
     
     document.getElementById('progressText').textContent = `${num} / ${total}`;
     document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
@@ -2678,19 +2837,20 @@
     
     // 이미지
     const img = document.getElementById('questionImg');
+    const imgWrap = document.getElementById('questionImgWrap');
     let src = q.문제그림URL;
     if (src) {
       // 시트에 직접 적은 경우: http(s) 또는 image/ 로 시작하면 그대로, 아니면 image/ 붙임
       if (!src.startsWith('http') && !src.startsWith('image/')) src = IMAGE_BASE + src;
       img.src = src;
-      img.classList.remove('hidden');
+      imgWrap.classList.remove('hidden');
     } else if (q.문제ID) {
       // 자동 경로: image/[영역폴더]/[문제ID].png  (예: image/atm/atm-001.png)
       const folder = partCode(q.문제ID);
       img.src = IMAGE_BASE + (folder ? folder + '/' : '') + q.문제ID + '.png';
-      img.classList.remove('hidden');
+      imgWrap.classList.remove('hidden');
     } else {
-      img.classList.add('hidden');
+      imgWrap.classList.add('hidden');
     }
     
     // 문제 유형 판별: 서술형 / 객관식(합답형) / 빈칸(기본)
