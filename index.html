@@ -367,6 +367,27 @@
     .login-footer .contact { font-size: 11px; color: var(--text-light); margin: 2px 0 0; }
     .login-footer .contact a { color: var(--primary); text-decoration: none; }
     .login-footer .contact a:hover { text-decoration: underline; }
+    /* 로그인 응원 팝업 */
+    .cheer-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999; padding: 20px;
+    }
+    .cheer-popup {
+      background: white; border-radius: 20px; padding: 32px 28px;
+      max-width: 360px; width: 100%; text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      animation: cheerPop 0.3s ease-out;
+    }
+    @keyframes cheerPop {
+      from { opacity: 0; transform: scale(0.9) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .cheer-emoji { font-size: 48px; margin-bottom: 10px; }
+    .cheer-name {
+      font-family: 'Jua', sans-serif; font-size: 20px; color: var(--text); margin-bottom: 6px;
+    }
+    .cheer-text { color: var(--text-light); font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
     /* 모드 선택 */
     .mode-btns { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
     .mode-card {
@@ -763,13 +784,23 @@
     <h2>👋 어서오세요!</h2>
     <p style="color: var(--text-light); margin-top: 4px;">학번을 입력하고 시작해요</p>
     <input type="text" id="studentIdInput" placeholder="예: 20101" onkeypress="if(event.key==='Enter')login()">
-    <button class="btn-primary" onclick="login()">입장하기</button>
+    <button class="btn-primary" onclick="login()">로그인하기</button>
     <p id="loginMsg" class="msg"></p>
 
     <div class="login-footer">
       <p class="report-note">🎁 문제 오류·오탈자 제보는 소소한 선물 증정 😮🥵</p>
       <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
       <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
+    </div>
+  </div>
+
+  <!-- 로그인 응원 팝업 -->
+  <div id="cheerOverlay" class="cheer-overlay hidden" onclick="closeCheerPopup()">
+    <div class="cheer-popup" onclick="event.stopPropagation()">
+      <div class="cheer-emoji" id="cheerEmoji">🌟</div>
+      <div class="cheer-name" id="cheerName"></div>
+      <div class="cheer-text" id="cheerText"></div>
+      <button class="btn-primary" onclick="closeCheerPopup()">시작할게요!</button>
     </div>
   </div>
 
@@ -1172,6 +1203,30 @@
   history.replaceState({ screen: 'loginScreen' }, '');
   
   // ===== 로그인 (최적화: 1번 호출 + 캐싱 + 로딩 표시) =====
+  // ===== 로그인 응원 팝업 =====
+  const CHEER_MESSAGES = [
+    { emoji: '🌟', text: '오늘도 한 걸음씩! 화이팅이에요' },
+    { emoji: '🔥', text: '집중력 최고! 오늘도 잘 풀어봐요' },
+    { emoji: '💪', text: '꾸준함이 실력이 돼요. 오늘도 힘내요!' },
+    { emoji: '🚀', text: '어제보다 조금 더 나아가는 오늘이 되길!' },
+    { emoji: '🌈', text: '틀려도 괜찮아요, 배우는 중이니까요!' },
+    { emoji: '📚', text: '차근차근 풀다 보면 어느새 실력이 쌓여요' },
+    { emoji: '✨', text: '오늘의 노력이 내일의 자신감이 돼요' },
+    { emoji: '🎯', text: '집중해서 하나씩 정복해봐요!' }
+  ];
+  
+  function showCheerPopup(name) {
+    const pick = CHEER_MESSAGES[Math.floor(Math.random() * CHEER_MESSAGES.length)];
+    document.getElementById('cheerEmoji').textContent = pick.emoji;
+    document.getElementById('cheerName').textContent = `${name}님, 환영해요!`;
+    document.getElementById('cheerText').textContent = pick.text;
+    document.getElementById('cheerOverlay').classList.remove('hidden');
+  }
+  
+  function closeCheerPopup() {
+    document.getElementById('cheerOverlay').classList.add('hidden');
+  }
+  
   async function login() {
     const id = document.getElementById('studentIdInput').value.trim();
     const msg = document.getElementById('loginMsg');
@@ -1180,7 +1235,7 @@
     // 로그인 버튼 비활성화 + 스피너 표시
     const loginBtn = document.querySelector('#loginScreen .btn-primary');
     loginBtn.disabled = true;
-    msg.innerHTML = '<span class="spinner"></span>입장하는 중...';
+    msg.innerHTML = '<span class="spinner"></span>로그인하는 중...';
     msg.className = 'msg';
     
     // ① 캐시된 문제 데이터 먼저 확인 (즉시 표시)
@@ -1213,6 +1268,7 @@
         document.getElementById('modeName').textContent = result.이름;
         showScreen('modeScreen');
         msg.innerHTML = '';
+        showCheerPopup(result.이름);
       } else {
         msg.textContent = '❌ ' + result.message;
         msg.className = 'msg error';
@@ -1230,6 +1286,7 @@
         document.getElementById('modeName').textContent = currentStudent.이름;
         showScreen('modeScreen');
         msg.innerHTML = '';
+        showCheerPopup(currentStudent.이름);
       } else {
         msg.textContent = '⚠️ 서버 연결 실패';
         msg.className = 'msg error';
