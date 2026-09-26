@@ -427,6 +427,25 @@
     .passage-blank.blank-no { background: #fee2e2; border-bottom-color: #b91c1c; color: #b91c1c; }
     .blank-answer { color: #15803d; font-size: 13px; font-weight: normal; margin: 0 4px; }
     .passage-filled { font-weight: normal; color: var(--primary); }
+    /* 필기장 */
+    .scratch-toggle {
+      width: 100%; margin-top: 14px; padding: 10px; font-size: 13px;
+      color: var(--text-light); background: #f8fafc; border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+    }
+    .scratch-wrap { margin-top: 10px; }
+    .scratch-tools { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 6px; }
+    .scratch-tools button {
+      font-size: 12px; padding: 5px 10px; border-radius: 8px;
+      border: 1px solid #e5e7eb; background: white;
+    }
+    .scratch-tools button.on { border-color: var(--primary); background: #eef2ff; }
+    .scratch-canvas {
+      width: 100%; height: 180px; display: block;
+      border: 1px dashed #cbd5e1; border-radius: 10px; background: #fafafa;
+      touch-action: none;
+    }
+    .scratch-hint { font-size: 12px; color: var(--text-light); margin-top: 6px; text-align: center; }
     /* O/X 퀴즈 */
     .ox-statement {
       font-size: 18px; line-height: 1.7; color: var(--text);
@@ -860,6 +879,15 @@
       <button class="ox-btn ox-x" onclick="answerOX('X')">X</button>
     </div>
     <div id="oxResult"></div>
+    <button type="button" class="scratch-toggle" onclick="toggleScratchpad('ox')">✏️ 필기장 펴기</button>
+    <div id="scratchWrap-ox" class="scratch-wrap hidden">
+      <div class="scratch-tools">
+        <button type="button" onclick="setScratchMode('ox','pen')">✏️ 펜</button>
+        <button type="button" onclick="setScratchMode('ox','eraser')">🧹 지우개</button>
+        <button type="button" onclick="clearScratchpad('ox')">🗑️ 전체 지우기</button>
+      </div>
+      <canvas id="scratchCanvas-ox" class="scratch-canvas"></canvas>
+    </div>
     <div class="actions">
       <button id="oxNextBtn" class="btn-primary hidden" onclick="nextOX()">다음 →</button>
     </div>
@@ -984,6 +1012,15 @@
     <img id="questionImg" class="question-img hidden" onerror="this.classList.add('hidden')">
     <div id="quizArea"></div>
     <div id="resultMsg"></div>
+    <button type="button" class="scratch-toggle" onclick="toggleScratchpad('quiz')">✏️ 필기장 펴기</button>
+    <div id="scratchWrap-quiz" class="scratch-wrap hidden">
+      <div class="scratch-tools">
+        <button type="button" onclick="setScratchMode('quiz','pen')">✏️ 펜</button>
+        <button type="button" onclick="setScratchMode('quiz','eraser')">🧹 지우개</button>
+        <button type="button" onclick="clearScratchpad('quiz')">🗑️ 전체 지우기</button>
+      </div>
+      <canvas id="scratchCanvas-quiz" class="scratch-canvas"></canvas>
+    </div>
     <div class="actions" id="quizActions">
       <button id="submitBtn" class="btn-primary" onclick="submitAnswer()">제출</button>
       <button id="revealBtn" class="btn-secondary" onclick="revealAnswer()">정답 보기</button>
@@ -1878,6 +1915,7 @@
   function showOXQuestion() {
     const q = allOX[oxSeq[oxPos]];
     oxAnswered = false;
+    resetScratchpad('ox');
     document.getElementById('oxBreadcrumb').innerHTML = `
       <span class="breadcrumb-icon">⭕</span><span>O/X 퀴즈</span>
       <span class="breadcrumb-sep">›</span><span>${oxSubName}</span>`;
@@ -2485,6 +2523,103 @@
   }
   
   // ===== 틀린 문제 다시 풀기 =====
+  // ===== 필기장 (개념별 문제 풀이 / O·X 퀴즈 전용, 저장 안 함) =====
+  const scratchState = {};   // key: 'quiz' | 'ox' → { ctx, drawing, last, mode }
+  
+  function getScratchEls(key) {
+    return {
+      wrap: document.getElementById('scratchWrap-' + key),
+      canvas: document.getElementById('scratchCanvas-' + key),
+      toggleBtn: document.querySelector(`.scratch-toggle[onclick="toggleScratchpad('${key}')"]`)
+    };
+  }
+  
+  function setupScratchCanvas(key) {
+    const { canvas } = getScratchEls(key);
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 300;
+    const h = canvas.clientHeight || 180;
+    canvas.width = w * ratio;
+    canvas.height = h * ratio;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#334155';
+    
+    if (!scratchState[key]) scratchState[key] = {};
+    const st = scratchState[key];
+    st.ctx = ctx;
+    st.mode = st.mode || 'pen';
+    st.drawing = false;
+    st.last = null;
+    setScratchMode(key, st.mode);
+    
+    if (canvas.dataset.bound) return;   // 이벤트는 한 번만 연결
+    canvas.dataset.bound = '1';
+    
+    const posOf = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+    const down = (e) => { st.drawing = true; st.last = posOf(e); e.preventDefault(); };
+    const move = (e) => {
+      if (!st.drawing) return;
+      const p = posOf(e);
+      st.ctx.globalCompositeOperation = st.mode === 'eraser' ? 'destination-out' : 'source-over';
+      st.ctx.lineWidth = st.mode === 'eraser' ? 18 : 2.2;
+      st.ctx.beginPath();
+      st.ctx.moveTo(st.last.x, st.last.y);
+      st.ctx.lineTo(p.x, p.y);
+      st.ctx.stroke();
+      st.last = p;
+      e.preventDefault();
+    };
+    const up = () => { st.drawing = false; };
+    canvas.addEventListener('mousedown', down);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', up);
+  }
+  
+  function toggleScratchpad(key) {
+    const { wrap, toggleBtn } = getScratchEls(key);
+    if (!wrap) return;
+    const opening = wrap.classList.contains('hidden');
+    wrap.classList.toggle('hidden');
+    if (toggleBtn) toggleBtn.textContent = opening ? '✏️ 필기장 접기' : '✏️ 필기장 펴기';
+    if (opening) setTimeout(() => setupScratchCanvas(key), 30);   // 펼쳐진 뒤 실제 크기로 세팅
+  }
+  
+  function setScratchMode(key, mode) {
+    if (!scratchState[key]) return;
+    scratchState[key].mode = mode;
+    document.querySelectorAll(`#scratchWrap-${key} .scratch-tools button`).forEach(b => b.classList.remove('on'));
+    const idx = mode === 'pen' ? 0 : 1;
+    const btns = document.querySelectorAll(`#scratchWrap-${key} .scratch-tools button`);
+    if (btns[idx]) btns[idx].classList.add('on');
+  }
+  
+  function clearScratchpad(key) {
+    const st = scratchState[key];
+    const { canvas } = getScratchEls(key);
+    if (st && st.ctx && canvas) st.ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  // 새 문제로 넘어갈 때 필기장 접고 비우기
+  function resetScratchpad(key) {
+    const { wrap, toggleBtn, canvas } = getScratchEls(key);
+    if (!wrap) return;
+    wrap.classList.add('hidden');
+    if (toggleBtn) toggleBtn.textContent = '✏️ 필기장 펴기';
+    const st = scratchState[key];
+    if (st && st.ctx && canvas) st.ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -2519,6 +2654,7 @@
     const q = quizQuestions[currentIndex];
     const total = quizQuestions.length;
     const num = currentIndex + 1;
+    resetScratchpad('quiz');
     
     document.getElementById('progressText').textContent = `${num} / ${total}`;
     document.getElementById('scoreText').textContent = `맞힌 개수: ${correctCount}`;
