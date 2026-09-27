@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>SJ 문제은행</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -779,9 +782,8 @@
     <div class="subtitle">EARTH SCIENCE</div>
   </div>
 
-  <!-- 로그인 -->
-  <!-- 사이트 이전 안내 -->
-  <div id="redirectScreen" class="card">
+  <!-- 로그인 (→ 사이트 이전 안내로 대체) -->
+  <div id="loginScreen" class="card">
     <h2>🚧 사이트가 이전되었어요</h2>
     <p style="color: var(--text-light); margin-top: 8px; line-height: 1.6;">
       리뉴얼로 인해 아래 링크로 이동해주세요.
@@ -792,6 +794,11 @@
     </a>
     <button class="btn-primary" onclick="location.href='https://earth516.github.io/Earthscience_test/'">지금 바로 이동하기</button>
     <p id="redirectCountdown" style="color: var(--text-light); margin-top: 12px; font-size: 14px;"></p>
+
+    <div class="login-footer">
+      <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
+      <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
+    </div>
   </div>
   <script>
     (function () {
@@ -811,20 +818,6 @@
       tick();
     })();
   </script>
-
-  <div id="loginScreen" class="card hidden">
-    <h2>👋 어서오세요!</h2>
-    <p style="color: var(--text-light); margin-top: 4px;">학번을 입력하고 시작해요</p>
-    <input type="text" id="studentIdInput" placeholder="예: 20101" onkeypress="if(event.key==='Enter')login()">
-    <button class="btn-primary" onclick="login()">로그인하기</button>
-    <p id="loginMsg" class="msg"></p>
-
-    <div class="login-footer">
-      <p class="report-note">🎁 문제 오류·오탈자 제보는 소소한 선물 증정 😮🥵</p>
-      <p class="copyright">© 2026 SJ 문제은행 · All rights reserved.</p>
-      <p class="contact">문의: <a href="mailto:cepheid@kakao.com">cepheid@kakao.com</a></p>
-    </div>
-  </div>
 
   <!-- 로그인 응원 팝업 -->
   <div id="cheerOverlay" class="cheer-overlay hidden" onclick="closeCheerPopup()">
@@ -1203,7 +1196,7 @@
   let navByPop = false;   // 뒤로가기로 인한 전환이면 히스토리에 다시 push 안 함
   
   function showScreen(id) {
-    ['redirectScreen', 'loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'paperScreen', 'mockExamScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
+    ['loginScreen', 'modeScreen', 'myLearningScreen', 'conceptTypeScreen', 'conceptModeScreen', 'conceptFillScreen', 'oxListScreen', 'oxQuizScreen', 'oxResultScreen', 'essayListScreen', 'essayScreen', 'paperScreen', 'mockExamScreen', 'subUnitScreen', 'conceptScreen', 'mockScreen', 'quizScreen', 'resultScreen']
       .forEach(s => document.getElementById(s).classList.add('hidden'));
     document.getElementById(id).classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
